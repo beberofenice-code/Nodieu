@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Video Notebook</string>
+    <string name="subtitle">Every video gets a box. Green box = published.</string>
+    <string name="add_video">+ Add video</string>
+    <string name="filter_all">All</string>
+    <string name="filter_draft">Not published</string>
+    <string name="filter_pub">Published</string>
+    <string name="label_videos">VIDEOS</string>
+    <string name="label_pub">PUBLISHED</string>
+    <string name="label_draft">NOT YET</string>
+    <string name="empty_title">Your notebook is empty</string>
+    <string name="empty_text">Tap “+ Add video” and pick a video from your phone. It appears here in its own box. When you post it, tap “Mark published” and the box turns green.</string>
+</resources>

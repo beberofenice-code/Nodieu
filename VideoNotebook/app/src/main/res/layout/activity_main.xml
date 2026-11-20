@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/subtitle"
+            android:textColor="@color/muted"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <LinearLayout style="@style/Tile" android:layout_marginRight="8dp">
+                <TextView android:id="@+id/countAll" style="@style/TileNum" android:textColor="@color/ink" />
+                <TextView style="@style/TileLabel" android:text="@string/label_videos" />
+            </LinearLayout>
+            <LinearLayout style="@style/Tile" android:layout_marginRight="8dp">
+                <TextView android:id="@+id/countPub" style="@style/TileNum" android:textColor="@color/pub" />
+                <TextView style="@style/TileLabel" android:text="@string/label_pub" />
+            </LinearLayout>
+            <LinearLayout style="@style/Tile">
+                <TextView android:id="@+id/countDraft" style="@style/TileNum" android:textColor="@color/draft" />
+                <TextView style="@style/TileLabel" android:text="@string/label_draft" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+            <Button android:id="@+id/filterAll" style="@style/FilterBtn" android:text="@string/filter_all" />
+            <Button android:id="@+id/filterDraft" style="@style/FilterBtn" android:text="@string/filter_draft" />
+            <Button android:id="@+id/filterPub" style="@style/FilterBtn" android:text="@string/filter_pub" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ListView
+            android:id="@+id/list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="14dp"
+            android:paddingLeft="16dp"
+            android:paddingRight="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="90dp" />
+
+        <LinearLayout
+            android:id="@+id/empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:background="@drawable/tile"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/emptyTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/empty_title"
+                android:textColor="@color/ink"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/emptyText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/empty_text"
+                android:textColor="@color/muted"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/addBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|right"
+            android:layout_margin="20dp"
+            android:background="@drawable/btn_accent"
+            android:elevation="6dp"
+            android:paddingLeft="22dp"
+            android:paddingRight="22dp"
+            android:text="@string/add_video"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+</LinearLayout>

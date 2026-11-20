@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#F3F5F7</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="ink">#18202A</color>
+    <color name="muted">#5D6875</color>
+    <color name="line">#C9D0D8</color>
+    <color name="accent">#2F4FD8</color>
+    <color name="pub">#1F9D55</color>
+    <color name="pub_soft">#E3F5EA</color>
+    <color name="draft">#B26A00</color>
+    <color name="draft_soft">#FFF1DC</color>
+    <color name="danger">#C0392B</color>
+    <color name="thumb_bg">#20262E</color>
+</resources>
