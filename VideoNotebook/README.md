@@ -7,7 +7,9 @@ Keep all your videos in one place. Every video gets its own box:
 
 ## Features
 - **+ Add video**: pick any video on your phone. There is **no size limit** (500 MB, 2 GB, anything), because the app links to the video on your phone instead of copying it.
-- Title and notes for each video (caption, hashtags, where to post).
+- Title and notes for each video (caption, hashtags).
+- **Platform**: tick TikTok, YouTube, Facebook, Instagram, X, Snapchat, or type another one.
+- **Planned posting date**: pick a date. The box shows how many days are left, "Post today!", or a red warning if the date has passed and the video is still not published.
 - **✓ Mark published** turns the box green and saves the date you posted it.
 - Filters: All / Not published / Published, with counters at the top.
 - **More ⋯**: edit, move up / move down (arrange your order), remove from notebook.

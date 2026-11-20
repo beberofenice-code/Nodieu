@@ -13,6 +13,10 @@ public class VideoItem {
     public long publishedAt;
     public long createdAt;
     public long sizeBytes;
+    /** Where it is (or will be) posted, comma separated, e.g. "TikTok, YouTube". */
+    public String platforms;
+    /** Planned posting date (start of day, in millis). 0 = no date set. */
+    public long plannedAt;
 
     public JSONObject toJson() throws JSONException {
         JSONObject o = new JSONObject();
@@ -24,6 +28,8 @@ public class VideoItem {
         o.put("publishedAt", publishedAt);
         o.put("createdAt", createdAt);
         o.put("sizeBytes", sizeBytes);
+        o.put("platforms", platforms);
+        o.put("plannedAt", plannedAt);
         return o;
     }
 
@@ -37,6 +43,8 @@ public class VideoItem {
         v.publishedAt = o.optLong("publishedAt");
         v.createdAt = o.optLong("createdAt");
         v.sizeBytes = o.optLong("sizeBytes");
+        v.platforms = o.optString("platforms", "");
+        v.plannedAt = o.optLong("plannedAt");
         return v;
     }
 }

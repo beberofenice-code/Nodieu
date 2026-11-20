@@ -2,6 +2,7 @@ package com.nodieu.videonotebook;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DatePickerDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -25,6 +26,8 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.DatePicker;
+import android.widget.ScrollView;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -34,6 +37,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +50,9 @@ public class MainActivity extends Activity {
 
     private static final int REQ_PICK = 1;
     private static final int FILTER_ALL = 0, FILTER_DRAFT = 1, FILTER_PUB = 2;
+    private static final String[] PLATFORMS = {
+            "TikTok", "YouTube", "Facebook", "Instagram", "X (Twitter)", "Snapchat"
+    };
 
     private VideoStore store;
     private List<VideoItem> videos = new ArrayList<VideoItem>();
@@ -257,19 +264,101 @@ public class MainActivity extends Activity {
         note.setText(v.note);
         box.addView(note);
 
+        // --- Platforms ---
+        box.addView(sectionLabel("Platform"));
+        List<String> current = new ArrayList<String>();
+        if (v.platforms != null) {
+            for (String p : v.platforms.split(",")) {
+                if (!p.trim().isEmpty()) current.add(p.trim());
+            }
+        }
+        final List<CheckBox> platformBoxes = new ArrayList<CheckBox>();
+        LinearLayout row = null;
+        for (int i = 0; i < PLATFORMS.length; i++) {
+            if (i % 2 == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                box.addView(row);
+            }
+            CheckBox cb = new CheckBox(this);
+            cb.setText(PLATFORMS[i]);
+            cb.setChecked(current.remove(PLATFORMS[i]));
+            row.addView(cb, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            platformBoxes.add(cb);
+        }
+        final EditText other = new EditText(this);
+        other.setHint("Other platform (optional)");
+        other.setSingleLine(true);
+        other.setText(join(current));
+        box.addView(other);
+
+        // --- Planned posting date ---
+        box.addView(sectionLabel("Planned posting date"));
+        final long[] planned = { v.plannedAt };
+        LinearLayout dateRow = new LinearLayout(this);
+        dateRow.setOrientation(LinearLayout.HORIZONTAL);
+        final Button dateBtn = new Button(this);
+        dateBtn.setAllCaps(false);
+        final Button clearBtn = new Button(this);
+        clearBtn.setAllCaps(false);
+        clearBtn.setText("Remove");
+        dateRow.addView(dateBtn, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        dateRow.addView(clearBtn);
+        box.addView(dateRow);
+        final Runnable showDate = new Runnable() {
+            @Override public void run() {
+                dateBtn.setText(planned[0] > 0 ? "📅 " + formatLongDate(planned[0]) : "📅 Choose a date");
+                clearBtn.setVisibility(planned[0] > 0 ? View.VISIBLE : View.GONE);
+            }
+        };
+        showDate.run();
+        dateBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) {
+                Calendar c = Calendar.getInstance();
+                if (planned[0] > 0) c.setTimeInMillis(planned[0]);
+                new DatePickerDialog(MainActivity.this, new DatePickerDialog.OnDateSetListener() {
+                    @Override public void onDateSet(DatePicker dp, int y, int m, int d) {
+                        planned[0] = startOfDay(y, m, d);
+                        showDate.run();
+                    }
+                }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
+            }
+        });
+        clearBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) {
+                planned[0] = 0;
+                showDate.run();
+            }
+        });
+
         final CheckBox pub = new CheckBox(this);
         pub.setText("Already published");
         pub.setChecked(v.published);
-        box.addView(pub);
+        LinearLayout.LayoutParams pubLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pubLp.topMargin = dp(10);
+        box.addView(pub, pubLp);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(box);
 
         new AlertDialog.Builder(this)
                 .setTitle(isNew ? "Add video" : "Edit video")
-                .setView(box)
+                .setView(scroll)
                 .setPositiveButton(isNew ? "Add" : "Save", new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         String t = title.getText().toString().trim();
                         v.title = t.isEmpty() ? "Untitled video" : t;
                         v.note = note.getText().toString().trim();
+                        List<String> chosen = new ArrayList<String>();
+                        for (CheckBox cb : platformBoxes) {
+                            if (cb.isChecked()) chosen.add(cb.getText().toString());
+                        }
+                        for (String p : other.getText().toString().split(",")) {
+                            if (!p.trim().isEmpty()) chosen.add(p.trim());
+                        }
+                        v.platforms = join(chosen);
+                        v.plannedAt = planned[0];
                         setPublished(v, pub.isChecked());
                         if (isNew) videos.add(v);
                         save();
@@ -285,6 +374,56 @@ public class MainActivity extends Activity {
                     }
                 })
                 .show();
+    }
+
+    private TextView sectionLabel(String text) {
+        TextView t = new TextView(this);
+        t.setText(text.toUpperCase());
+        t.setTextSize(12);
+        t.setLetterSpacing(0.08f);
+        t.setTextColor(getResources().getColor(R.color.muted));
+        t.setPadding(0, dp(14), 0, dp(2));
+        return t;
+    }
+
+    private static String join(List<String> parts) {
+        StringBuilder b = new StringBuilder();
+        for (String p : parts) {
+            if (b.length() > 0) b.append(", ");
+            b.append(p);
+        }
+        return b.toString();
+    }
+
+    private static long startOfDay(int y, int m, int d) {
+        Calendar c = Calendar.getInstance();
+        c.clear();
+        c.set(y, m, d, 0, 0, 0);
+        return c.getTimeInMillis();
+    }
+
+    private static long today() {
+        Calendar c = Calendar.getInstance();
+        return startOfDay(c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
+    }
+
+    /** Whole days from today to the planned date (negative = in the past). */
+    private static int daysUntil(long plannedAt) {
+        Calendar a = Calendar.getInstance();
+        a.setTimeInMillis(today());
+        Calendar b = Calendar.getInstance();
+        b.setTimeInMillis(plannedAt);
+        int days = 0;
+        if (b.before(a)) {
+            while (b.before(a)) { b.add(Calendar.DAY_OF_MONTH, 1); days--; }
+        } else {
+            while (a.before(b)) { a.add(Calendar.DAY_OF_MONTH, 1); days++; }
+        }
+        return days;
+    }
+
+    private String formatLongDate(long t) {
+        return DateFormat.format("EEE, d MMM yyyy", t).toString();
     }
 
     private void setPublished(VideoItem v, boolean on) {
@@ -311,7 +450,7 @@ public class MainActivity extends Activity {
     private void showMore(View anchor, final VideoItem v) {
         PopupMenu pm = new PopupMenu(this, anchor);
         final int idx = videos.indexOf(v);
-        pm.getMenu().add(0, 1, 0, "Edit title & notes");
+        pm.getMenu().add(0, 1, 0, "Edit details (platform, date…)");
         pm.getMenu().add(0, 2, 1, "Move up").setEnabled(idx > 0);
         pm.getMenu().add(0, 3, 2, "Move down").setEnabled(idx < videos.size() - 1);
         pm.getMenu().add(0, 4, 3, "Remove from notebook");
@@ -445,6 +584,43 @@ public class MainActivity extends Activity {
             chip.setText(v.published ? "● PUBLISHED" : "○ NOT PUBLISHED");
 
             title.setText(v.title);
+
+            TextView platforms = (TextView) view.findViewById(R.id.platforms);
+            boolean hasPlat = v.platforms != null && !v.platforms.isEmpty();
+            platforms.setVisibility(hasPlat ? View.VISIBLE : View.GONE);
+            if (hasPlat) {
+                platforms.setText((v.published ? "Posted on: " : "Post on: ") + v.platforms.replace(", ", " · "));
+            }
+
+            TextView planned = (TextView) view.findViewById(R.id.planned);
+            if (v.plannedAt > 0) {
+                planned.setVisibility(View.VISIBLE);
+                String date = formatLongDate(v.plannedAt);
+                int days = daysUntil(v.plannedAt);
+                int color;
+                String text;
+                if (v.published) {
+                    text = "📅 Planned " + date;
+                    color = R.color.muted;
+                } else if (days < 0) {
+                    text = "⚠ Planned date passed · " + date;
+                    color = R.color.danger;
+                } else if (days == 0) {
+                    text = "📅 Post today!";
+                    color = R.color.pub;
+                } else if (days == 1) {
+                    text = "📅 Post tomorrow · " + date;
+                    color = R.color.draft;
+                } else {
+                    text = "📅 " + date + " · in " + days + " days";
+                    color = R.color.draft;
+                }
+                planned.setText(text);
+                planned.setTextColor(getResources().getColor(color));
+            } else {
+                planned.setVisibility(View.GONE);
+            }
+
             note.setText(v.note);
             note.setVisibility(v.note == null || v.note.isEmpty() ? View.GONE : View.VISIBLE);
 
