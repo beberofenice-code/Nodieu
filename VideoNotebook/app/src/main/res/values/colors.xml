@@ -1,15 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#F3F5F7</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="ink">#18202A</color>
-    <color name="muted">#5D6875</color>
-    <color name="line">#C9D0D8</color>
-    <color name="accent">#2F4FD8</color>
-    <color name="pub">#1F9D55</color>
-    <color name="pub_soft">#E3F5EA</color>
-    <color name="draft">#B26A00</color>
-    <color name="draft_soft">#FFF1DC</color>
-    <color name="danger">#C0392B</color>
-    <color name="thumb_bg">#20262E</color>
+    <!-- Cinematic dark studio palette -->
+    <color name="bg">#0E0F13</color>
+    <color name="surface">#171920</color>
+    <color name="card">#232632</color>
+    <color name="border">#262936</color>
+    <color name="text">#F8FAFC</color>
+    <color name="muted">#94A3B8</color>
+    <color name="faint">#5B6377</color>
+    <color name="pub">#10B981</color>
+    <color name="pub_border">#BF10B981</color>
+    <color name="pub_soft">#2610B981</color>
+    <color name="draft">#F59E0B</color>
+    <color name="draft_soft">#26F59E0B</color>
+    <color name="accent">#6366F1</color>
+    <color name="accent_light">#A5B4FC</color>
+    <color name="accent_soft">#336366F1</color>
+    <color name="danger">#F87171</color>
+    <color name="header">#E80E0F13</color>
+    <color name="frost">#99090A0D</color>
+    <color name="snack">#262A36</color>
 </resources>

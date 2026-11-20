@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.nodieu.videonotebook.AspectFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/card_bg"
+    android:stateListAnimator="@animator/press_scale">
+
+    <ImageView
+        android:id="@+id/fallback"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="center"
+        android:layout_marginBottom="18dp"
+        android:src="@drawable/ic_movie"
+        android:tint="#3A3F52" />
+
+    <ImageView
+        android:id="@+id/thumb"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop" />
+
+    <!-- Bottom 42% gradient scrim -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="58" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="42"
+            android:background="@drawable/scrim" />
+    </LinearLayout>
+
+    <!-- Status badge -->
+    <LinearLayout
+        android:id="@+id/badge"
+        android:layout_width="wrap_content"
+        android:layout_height="20dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:background="@drawable/pill_frost"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="6dp"
+        android:paddingRight="7dp">
+        <View
+            android:id="@+id/badgeDot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:background="@drawable/dot_pub" />
+        <TextView
+            android:id="@+id/badgeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="@color/text"
+            android:textSize="9.5sp" />
+    </LinearLayout>
+
+    <!-- Quick actions -->
+    <ImageView
+        android:id="@+id/quick"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="4dp"
+        android:background="@drawable/circle_frost"
+        android:clickable="true"
+        android:contentDescription="Quick actions"
+        android:focusable="false"
+        android:padding="4dp"
+        android:src="@drawable/ic_more"
+        android:tint="@color/text" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:orientation="vertical"
+        android:paddingBottom="8dp"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp">
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:lineSpacingExtra="1dp"
+            android:maxLines="2"
+            android:shadowColor="#99000000"
+            android:shadowRadius="4"
+            android:textColor="#FFFFFF"
+            android:textSize="12.5sp" />
+        <TextView
+            android:id="@+id/label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:fontFeatureSettings="tnum"
+            android:maxLines="1"
+            android:textColor="@color/muted"
+            android:textSize="10sp" />
+    </LinearLayout>
+</com.nodieu.videonotebook.AspectFrameLayout>
