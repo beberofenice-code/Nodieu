@@ -7,6 +7,7 @@ A dark, poster-style library for your videos. Published videos get an emerald bo
 - **Bottom navigation**: All / Not Yet / Published, each with a live count.
 - **+ button**: add any video from your phone. There is **no size limit** (500 MB, 2 GB…), because the app links to the video instead of copying it.
 - **Tap a poster** to open the detail sheet: play the video, see status, platform, planned date, notes, added/posted dates and file size, mark published / not published, edit, share, move earlier/later, open in your video player, or delete.
+- **Swipe up on a poster** to open the violet **Platforms** panel: one box per platform. A red ✗ means not uploaded there yet; tap it after you upload and it becomes a green ✓ (with the date). When every platform is ✓, the video is marked published. Add platforms with the chips at the bottom; long-press a row to remove one.
 - **Long-press a poster** (or tap its ⋮) for one-second actions: mark published, edit, share, remove.
 - **Search** titles, and **sort** by my order, date added, date posted, planned date, name or file size.
 - **Undo** after adding, removing, or changing published status.

@@ -20,4 +20,14 @@
     <color name="header">#E80E0F13</color>
     <color name="frost">#99090A0D</color>
     <color name="snack">#262A36</color>
+    <!-- Premium violet platform panel -->
+    <color name="violet">#8B5CF6</color>
+    <color name="violet_light">#C4B5FD</color>
+    <color name="violet_deep">#241843</color>
+    <color name="violet_ink">#151021</color>
+    <color name="violet_line">#3A2C63</color>
+    <color name="violet_row">#1E1634</color>
+    <color name="violet_soft">#338B5CF6</color>
+    <color name="red">#F43F5E</color>
+    <color name="red_soft">#29F43F5E</color>
 </resources>

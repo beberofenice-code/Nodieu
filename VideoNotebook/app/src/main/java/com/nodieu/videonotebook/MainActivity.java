@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.drawable.GradientDrawable;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -26,9 +27,11 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.OvershootInterpolator;
 import android.view.Window;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
@@ -44,6 +47,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.MediaController;
 import android.widget.PopupMenu;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -109,6 +113,12 @@ public class MainActivity extends Activity {
     private Dialog sheet;
     private VideoItem sheetVideo;
     private Runnable sheetRebind;
+
+    // Violet platform panel (opened by swiping up on a poster).
+    private Dialog panel;
+    private VideoItem panelVideo;
+    private Runnable panelRebind;
+    private String popPlatform; // row whose box should "pop" after a tap
 
     // Snackbar state: what to do when it closes without Undo.
     private Runnable snackCommit;
@@ -186,6 +196,46 @@ public class MainActivity extends Activity {
             }
         });
 
+        // Quick swipe up that starts on a poster opens its platform panel.
+        // The listener never consumes events, so normal scrolling still works.
+        grid.setOnTouchListener(new View.OnTouchListener() {
+            private float downX, downY;
+            private long downT;
+            private int downPos = AdapterView.INVALID_POSITION;
+
+            @Override public boolean onTouch(View g, MotionEvent e) {
+                switch (e.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        downX = e.getX();
+                        downY = e.getY();
+                        downT = e.getEventTime();
+                        downPos = grid.pointToPosition((int) downX, (int) downY);
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        float dy = downY - e.getY();
+                        float dx = Math.abs(e.getX() - downX);
+                        long dt = e.getEventTime() - downT;
+                        if (downPos != AdapterView.INVALID_POSITION && downPos < shown.size()
+                                && dt < 350 && dy > dp(56) && dx < dy * 0.6f) {
+                            final VideoItem v = shown.get(downPos);
+                            grid.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                            grid.post(new Runnable() {
+                                @Override public void run() {
+                                    grid.smoothScrollBy(0, 0); // stop the fling the swipe started
+                                    openPlatformPanel(v);
+                                }
+                            });
+                        }
+                        downPos = AdapterView.INVALID_POSITION;
+                        break;
+                    case MotionEvent.ACTION_CANCEL:
+                        downPos = AdapterView.INVALID_POSITION;
+                        break;
+                }
+                return false;
+            }
+        });
+
         // Keep the grid clear of the floating header as it grows (search open/closed).
         header.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
@@ -233,6 +283,13 @@ public class MainActivity extends Activity {
 
         setViewMode(viewMode, false);
         setTab(tab, false);
+
+        if (!videos.isEmpty() && !ui.getBoolean("tipSwipe", false)) {
+            ui.edit().putBoolean("tipSwipe", true).apply();
+            main.postDelayed(new Runnable() {
+                @Override public void run() { showSnack("Tip: swipe up on a poster to tick its platforms", null, null); }
+            }, 800);
+        }
     }
 
     @Override
@@ -241,6 +298,7 @@ public class MainActivity extends Activity {
         main.removeCallbacks(snackTimeout);
         if (snackCommit != null) { snackCommit.run(); snackCommit = null; }
         if (sheet != null) sheet.dismiss();
+        if (panel != null) panel.dismiss();
         thumbExecutor.shutdownNow();
     }
 
@@ -380,6 +438,14 @@ public class MainActivity extends Activity {
                 emptyIcon.setImageResource(R.drawable.ic_clock);
                 emptyTitle.setText("All caught up");
                 emptyText.setText("Every video is published. Nice work.");
+            }
+        }
+
+        if (panel != null && panel.isShowing()) {
+            if (videos.contains(panelVideo)) {
+                if (panelRebind != null) panelRebind.run();
+            } else {
+                panel.dismiss();
             }
         }
 
@@ -619,6 +685,7 @@ public class MainActivity extends Activity {
                             if (!p.trim().isEmpty()) chosen.add(p.trim());
                         }
                         v.platforms = join(chosen);
+                        v.postedOn.keySet().retainAll(chosen);
                         v.plannedAt = planned[0];
                         setPublished(v, pub.isChecked());
                         if (isNew) {
@@ -764,6 +831,7 @@ public class MainActivity extends Activity {
     private void showQuickMenu(View anchor, final VideoItem v) {
         PopupMenu pm = new PopupMenu(this, anchor, Gravity.END);
         pm.getMenu().add(0, 1, 0, v.published ? "Mark not published" : "Mark as published");
+        pm.getMenu().add(0, 6, 1, "Platforms");
         pm.getMenu().add(0, 2, 1, "Open details");
         pm.getMenu().add(0, 3, 2, "Edit details");
         pm.getMenu().add(0, 4, 3, "Share");
@@ -776,6 +844,7 @@ public class MainActivity extends Activity {
                     case 3: showEditDialog(v, false); return true;
                     case 4: share(v); return true;
                     case 5: removeWithUndo(v); return true;
+                    case 6: openPlatformPanel(v); return true;
                 }
                 return false;
             }
@@ -863,6 +932,10 @@ public class MainActivity extends Activity {
         toggle.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View b) { togglePublished(v); }
         });
+        final TextView platBtn = (TextView) root.findViewById(R.id.sheetPlatBtn);
+        platBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) { openPlatformPanel(v); }
+        });
 
         final View[] moveBtns = new View[2];
         addAction(actions, R.drawable.ic_edit, "Edit", new Runnable() {
@@ -924,6 +997,10 @@ public class MainActivity extends Activity {
                     toggle.setBackgroundResource(R.drawable.btn_pub);
                     toggle.setTextColor(0xFFFFFFFF);
                 }
+
+                List<String> plats = platformsOf(v);
+                int done = postedCount(v, plats);
+                platBtn.setText(plats.isEmpty() ? "+  Add platforms" : "Platforms  ·  " + done + "/" + plats.size() + " uploaded  ›");
 
                 int idx = videos.indexOf(v);
                 boolean manual = sort == SORT_MANUAL;
@@ -989,6 +1066,264 @@ public class MainActivity extends Activity {
     }
 
     // =====================================================================
+    // Violet platform panel: one box per platform (red X = not uploaded, green check = uploaded)
+    // =====================================================================
+
+    private List<String> platformsOf(VideoItem v) {
+        List<String> list = new ArrayList<String>();
+        if (v.platforms != null) {
+            for (String p : v.platforms.split(",")) {
+                String t = p.trim();
+                if (!t.isEmpty() && !list.contains(t)) list.add(t);
+            }
+        }
+        return list;
+    }
+
+    private int postedCount(VideoItem v, List<String> plats) {
+        int n = 0;
+        for (String p : plats) if (v.postedOn.containsKey(p)) n++;
+        return n;
+    }
+
+    private void openPlatformPanel(final VideoItem v) {
+        if (panel != null) panel.dismiss();
+        final Dialog d = new Dialog(this, R.style.SheetDialog);
+        final View root = LayoutInflater.from(this).inflate(R.layout.sheet_platforms, null);
+        d.setContentView(root);
+        d.setCanceledOnTouchOutside(true);
+
+        boolean wide = getResources().getConfiguration().screenWidthDp >= 600;
+        Window w = d.getWindow();
+        if (w != null) {
+            w.setLayout(wide ? dp(520) : ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.setGravity(wide ? Gravity.CENTER : Gravity.BOTTOM);
+        }
+        if (wide) root.setBackgroundResource(R.drawable.violet_sheet_bg_round);
+        root.setClipToOutline(true);
+
+        root.findViewById(R.id.pThumbWrap).setClipToOutline(true);
+        Bitmap cached = thumbs.get(v.uri);
+        if (cached != null) ((ImageView) root.findViewById(R.id.pThumb)).setImageBitmap(cached);
+
+        final TextView title = (TextView) root.findViewById(R.id.pTitle);
+        final TextView count = (TextView) root.findViewById(R.id.pCount);
+        final ProgressBar progress = (ProgressBar) root.findViewById(R.id.pProgress);
+        final TextView hint = (TextView) root.findViewById(R.id.pHint);
+        final LinearLayout rows = (LinearLayout) root.findViewById(R.id.pRows);
+        final LinearLayout add = (LinearLayout) root.findViewById(R.id.pAdd);
+        final TextView addLabel = (TextView) root.findViewById(R.id.pAddLabel);
+        root.findViewById(R.id.pDone).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) { d.dismiss(); }
+        });
+
+        panelRebind = new Runnable() {
+            @Override public void run() {
+                title.setText(v.title);
+                List<String> plats = platformsOf(v);
+                int done = postedCount(v, plats);
+
+                if (plats.isEmpty()) {
+                    count.setText("No platforms yet");
+                    count.setTextColor(color(R.color.muted));
+                    hint.setText("Add where you'll post this video, then tick each one after you upload.");
+                } else if (done == plats.size()) {
+                    count.setText("All " + plats.size() + " uploaded ✓");
+                    count.setTextColor(color(R.color.pub));
+                    hint.setText(v.published ? "Done everywhere. This video is published." : "Done everywhere.");
+                } else {
+                    count.setText(done + " of " + plats.size() + " uploaded");
+                    count.setTextColor(color(R.color.violet_light));
+                    hint.setText("Tap a box when you've uploaded the video there.");
+                }
+                progress.setVisibility(plats.isEmpty() ? View.GONE : View.VISIBLE);
+                progress.setProgress(plats.isEmpty() ? 0 : done * 100 / plats.size());
+
+                rows.removeAllViews();
+                for (final String name : plats) {
+                    View row = LayoutInflater.from(MainActivity.this).inflate(R.layout.item_platform, rows, false);
+                    boolean posted = v.postedOn.containsKey(name);
+
+                    TextView mono = (TextView) row.findViewById(R.id.mono);
+                    styleMonogram(mono, name);
+                    ((TextView) row.findViewById(R.id.name)).setText(name);
+                    TextView state = (TextView) row.findViewById(R.id.state);
+                    View box = row.findViewById(R.id.box);
+                    ImageView boxIcon = (ImageView) row.findViewById(R.id.boxIcon);
+                    if (posted) {
+                        Long at = v.postedOn.get(name);
+                        state.setText(at != null && at > 0 ? "Uploaded · " + formatDate(at) : "Uploaded");
+                        state.setTextColor(color(R.color.pub));
+                        row.setBackgroundResource(R.drawable.platform_row_done);
+                        box.setBackgroundResource(R.drawable.box_check);
+                        boxIcon.setImageResource(R.drawable.ic_check);
+                        boxIcon.setColorFilter(0xFFFFFFFF);
+                    } else {
+                        state.setText("Not uploaded yet");
+                        state.setTextColor(color(R.color.red));
+                        row.setBackgroundResource(R.drawable.platform_row_bg);
+                        box.setBackgroundResource(R.drawable.box_x);
+                        boxIcon.setImageResource(R.drawable.ic_close);
+                        boxIcon.setColorFilter(color(R.color.red));
+                    }
+                    row.setContentDescription(name + (posted ? ", uploaded" : ", not uploaded yet"));
+
+                    View.OnClickListener tap = new View.OnClickListener() {
+                        @Override public void onClick(View b) {
+                            b.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                            togglePlatform(v, name);
+                        }
+                    };
+                    row.setOnClickListener(tap);
+                    box.setOnClickListener(tap);
+                    row.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override public boolean onLongClick(View b) {
+                            confirmRemovePlatform(v, name);
+                            return true;
+                        }
+                    });
+
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, dp(68));
+                    lp.bottomMargin = dp(10);
+                    rows.addView(row, lp);
+
+                    if (name.equals(popPlatform)) {
+                        box.setScaleX(0.6f);
+                        box.setScaleY(0.6f);
+                        box.animate().scaleX(1f).scaleY(1f).setDuration(260)
+                                .setInterpolator(new OvershootInterpolator(2.5f)).start();
+                    }
+                }
+                popPlatform = null;
+
+                add.removeAllViews();
+                for (final String p : PLATFORMS) {
+                    if (plats.contains(p)) continue;
+                    addPlatformChip(add, "+  " + p, new Runnable() {
+                        @Override public void run() { addPlatform(v, p); }
+                    });
+                }
+                addPlatformChip(add, "+  Other…", new Runnable() {
+                    @Override public void run() { askOtherPlatform(v); }
+                });
+                addLabel.setText(plats.isEmpty() ? "CHOOSE PLATFORMS" : "ADD A PLATFORM");
+            }
+        };
+        panelRebind.run();
+
+        d.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override public void onDismiss(DialogInterface di) {
+                if (panel == d) {
+                    panel = null;
+                    panelVideo = null;
+                    panelRebind = null;
+                }
+            }
+        });
+        panel = d;
+        panelVideo = v;
+        d.show();
+    }
+
+    private void togglePlatform(VideoItem v, String name) {
+        if (v.postedOn.containsKey(name)) {
+            v.postedOn.remove(name);
+        } else {
+            v.postedOn.put(name, System.currentTimeMillis());
+            List<String> plats = platformsOf(v);
+            // Every platform ticked: the video counts as published.
+            if (!v.published && postedCount(v, plats) == plats.size()) setPublished(v, true);
+        }
+        popPlatform = name;
+        save();
+    }
+
+    private void addPlatform(VideoItem v, String name) {
+        List<String> plats = platformsOf(v);
+        if (plats.contains(name)) return;
+        plats.add(name);
+        v.platforms = join(plats);
+        save();
+    }
+
+    private void confirmRemovePlatform(final VideoItem v, final String name) {
+        new AlertDialog.Builder(this)
+                .setTitle("Remove " + name + "?")
+                .setMessage("It's removed from this video's platform list only.")
+                .setPositiveButton("Remove", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface di, int which) {
+                        List<String> plats = platformsOf(v);
+                        plats.remove(name);
+                        v.platforms = join(plats);
+                        v.postedOn.remove(name);
+                        save();
+                    }
+                })
+                .setNegativeButton("Keep", null)
+                .show();
+    }
+
+    private void askOtherPlatform(final VideoItem v) {
+        final EditText input = new EditText(this);
+        input.setHint("e.g. Threads, LinkedIn");
+        input.setSingleLine(true);
+        FrameLayout wrap = new FrameLayout(this);
+        wrap.setPadding(dp(20), dp(8), dp(20), 0);
+        wrap.addView(input);
+        new AlertDialog.Builder(this)
+                .setTitle("Add a platform")
+                .setView(wrap)
+                .setPositiveButton("Add", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface di, int which) {
+                        String name = input.getText().toString().replace(",", " ").trim();
+                        if (!name.isEmpty()) addPlatform(v, name);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void addPlatformChip(LinearLayout parent, String text, final Runnable action) {
+        TextView c = new TextView(this);
+        c.setText(text);
+        c.setTextSize(13);
+        c.setTextColor(color(R.color.violet_light));
+        c.setBackgroundResource(R.drawable.chip_violet);
+        c.setPadding(dp(14), dp(8), dp(14), dp(8));
+        c.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) { action.run(); }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = dp(8);
+        parent.addView(c, lp);
+    }
+
+    /** Brand-colored round badge with a letter/symbol for each platform. */
+    private void styleMonogram(TextView t, String name) {
+        String n = name.toLowerCase(Locale.getDefault());
+        int bg = color(R.color.violet);
+        int fg = 0xFFFFFFFF;
+        int stroke = 0;
+        String glyph = name.substring(0, 1).toUpperCase(Locale.getDefault());
+        if (n.contains("facebook")) { bg = 0xFF1877F2; glyph = "f"; }
+        else if (n.contains("youtube")) { bg = 0xFFFF0033; glyph = "▶"; }
+        else if (n.contains("tiktok")) { bg = 0xFF111111; glyph = "♪"; fg = 0xFF25F4EE; stroke = 0xFF333333; }
+        else if (n.contains("instagram")) { bg = 0xFFE1306C; glyph = "◎"; }
+        else if (n.startsWith("x") || n.contains("twitter")) { bg = 0xFF000000; glyph = "X"; stroke = 0xFF333333; }
+        else if (n.contains("snapchat")) { bg = 0xFFFFFC00; glyph = "S"; fg = 0xFF111111; }
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.RECTANGLE);
+        g.setCornerRadius(dp(12));
+        g.setColor(bg);
+        if (stroke != 0) g.setStroke(dp(1), stroke);
+        t.setBackground(g);
+        t.setText(glyph);
+        t.setTextColor(fg);
+    }
+
+    // =====================================================================
     // Snackbar with optional Undo
     // =====================================================================
 
@@ -999,6 +1334,14 @@ public class MainActivity extends Activity {
     private void showSnack(String message, final Runnable undo, Runnable commit) {
         main.removeCallbacks(snackTimeout);
         if (snackCommit != null) { snackCommit.run(); }
+        boolean overlay = (sheet != null && sheet.isShowing()) || (panel != null && panel.isShowing());
+        if (overlay) {
+            // The open sheet already shows the change; the bar would be hidden behind it.
+            snackCommit = null;
+            if (commit != null) commit.run();
+            if (snack.getVisibility() == View.VISIBLE) hideSnack(false);
+            return;
+        }
         snackCommit = commit;
         snackText.setText(message);
         snackUndo.setVisibility(undo != null ? View.VISIBLE : View.GONE);
@@ -1089,10 +1432,27 @@ public class MainActivity extends Activity {
             label.setTextColor(plan != null && !list ? plannedColor(v) : color(R.color.muted));
             label.setVisibility(sb.length() == 0 ? View.GONE : View.VISIBLE);
 
+            List<String> plats = platformsOf(v);
+            int done = postedCount(v, plats);
+            if (!list) {
+                View plat = view.findViewById(R.id.plat);
+                plat.setVisibility(plats.isEmpty() ? View.GONE : View.VISIBLE);
+                if (!plats.isEmpty()) {
+                    boolean all = done == plats.size();
+                    plat.setBackgroundResource(all ? R.drawable.pill_done : R.drawable.pill_violet);
+                    ImageView pi = (ImageView) view.findViewById(R.id.platIcon);
+                    pi.setImageResource(all ? R.drawable.ic_check : R.drawable.ic_swipe_up);
+                    pi.setColorFilter(color(all ? R.color.pub : R.color.violet_light));
+                    TextView pt = (TextView) view.findViewById(R.id.platText);
+                    pt.setText(done + "/" + plats.size() + " posted");
+                    pt.setTextColor(color(all ? R.color.pub : R.color.violet_light));
+                }
+            }
+
             if (list) {
                 TextView extra = (TextView) view.findViewById(R.id.extra);
                 List<String> bits = new ArrayList<String>();
-                if (v.platforms != null && !v.platforms.isEmpty()) bits.add(v.platforms.replace(", ", " · "));
+                if (!plats.isEmpty()) bits.add(done + "/" + plats.size() + " posted · " + v.platforms.replace(", ", " · "));
                 CharSequence lp = p ? null : plannedText(v, false);
                 if (lp != null) bits.add(lp.toString());
                 extra.setVisibility(bits.isEmpty() ? View.GONE : View.VISIBLE);

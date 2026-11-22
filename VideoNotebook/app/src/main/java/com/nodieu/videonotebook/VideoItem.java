@@ -3,6 +3,10 @@ package com.nodieu.videonotebook;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /** One video in the notebook. The video file stays on the phone; we keep a link (uri) to it. */
 public class VideoItem {
     public String id;
@@ -17,6 +21,8 @@ public class VideoItem {
     public String platforms;
     /** Planned posting date (start of day, in millis). 0 = no date set. */
     public long plannedAt;
+    /** Platforms this video is already uploaded to, with the date it was ticked (millis). */
+    public Map<String, Long> postedOn = new LinkedHashMap<String, Long>();
 
     public JSONObject toJson() throws JSONException {
         JSONObject o = new JSONObject();
@@ -30,6 +36,9 @@ public class VideoItem {
         o.put("sizeBytes", sizeBytes);
         o.put("platforms", platforms);
         o.put("plannedAt", plannedAt);
+        JSONObject posted = new JSONObject();
+        for (Map.Entry<String, Long> e : postedOn.entrySet()) posted.put(e.getKey(), e.getValue());
+        o.put("postedOn", posted);
         return o;
     }
 
@@ -45,6 +54,14 @@ public class VideoItem {
         v.sizeBytes = o.optLong("sizeBytes");
         v.platforms = o.optString("platforms", "");
         v.plannedAt = o.optLong("plannedAt");
+        JSONObject posted = o.optJSONObject("postedOn");
+        if (posted != null) {
+            Iterator<String> keys = posted.keys();
+            while (keys.hasNext()) {
+                String k = keys.next();
+                v.postedOn.put(k, posted.optLong(k));
+            }
+        }
         return v;
     }
 }

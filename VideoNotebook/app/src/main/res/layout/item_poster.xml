@@ -87,6 +87,33 @@
         android:paddingBottom="8dp"
         android:paddingLeft="8dp"
         android:paddingRight="8dp">
+        <LinearLayout
+            android:id="@+id/plat"
+            android:layout_width="wrap_content"
+            android:layout_height="20dp"
+            android:layout_marginBottom="5dp"
+            android:background="@drawable/pill_violet"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="4dp"
+            android:paddingRight="7dp"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/platIcon"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_swipe_up"
+                android:tint="@color/violet_light" />
+            <TextView
+                android:id="@+id/platText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:fontFamily="sans-serif-medium"
+                android:fontFeatureSettings="tnum"
+                android:textColor="@color/violet_light"
+                android:textSize="10sp" />
+        </LinearLayout>
         <TextView
             android:id="@+id/title"
             android:layout_width="match_parent"
