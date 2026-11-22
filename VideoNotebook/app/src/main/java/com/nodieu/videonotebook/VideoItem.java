@@ -21,6 +21,8 @@ public class VideoItem {
     public String platforms;
     /** Planned posting date (start of day, in millis). 0 = no date set. */
     public long plannedAt;
+    /** Folder this video is in. Empty = Unsorted. */
+    public String folderId = "";
     /** Platforms this video is already uploaded to, with the date it was ticked (millis). */
     public Map<String, Long> postedOn = new LinkedHashMap<String, Long>();
 
@@ -36,6 +38,7 @@ public class VideoItem {
         o.put("sizeBytes", sizeBytes);
         o.put("platforms", platforms);
         o.put("plannedAt", plannedAt);
+        o.put("folderId", folderId);
         JSONObject posted = new JSONObject();
         for (Map.Entry<String, Long> e : postedOn.entrySet()) posted.put(e.getKey(), e.getValue());
         o.put("postedOn", posted);
@@ -54,6 +57,7 @@ public class VideoItem {
         v.sizeBytes = o.optLong("sizeBytes");
         v.platforms = o.optString("platforms", "");
         v.plannedAt = o.optLong("plannedAt");
+        v.folderId = o.optString("folderId", "");
         JSONObject posted = o.optJSONObject("postedOn");
         if (posted != null) {
             Iterator<String> keys = posted.keys();

@@ -88,6 +88,13 @@ public class MainActivity extends Activity {
     };
 
     private VideoStore store;
+    private List<Folder> folders = new ArrayList<Folder>();
+    /** null = home (folder list); "" = Unsorted; otherwise a folder id. */
+    private String currentFolder;
+    private View home, backBtn, headerDot, searchBtn, sortBtn;
+    private LinearLayout folderList;
+    private TextView headerTitle, homeSummary;
+    private ImageButton fab;
     private SharedPreferences ui;
     private List<VideoItem> videos = new ArrayList<VideoItem>();
     private List<VideoItem> shown = new ArrayList<VideoItem>();
@@ -142,7 +149,14 @@ public class MainActivity extends Activity {
 
         store = new VideoStore(this);
         videos = store.load();
+        folders = store.loadFolders();
+        // A video pointing at a folder that no longer exists goes to Unsorted.
+        for (VideoItem v : videos) {
+            if (v.folderId == null || (!v.folderId.isEmpty() && findFolder(v.folderId) == null)) v.folderId = "";
+        }
         ui = getPreferences(MODE_PRIVATE);
+        currentFolder = ui.getString("folder", null);
+        if (currentFolder != null && !currentFolder.isEmpty() && findFolder(currentFolder) == null) currentFolder = null;
         tab = ui.getInt("filter", TAB_ALL);
         viewMode = ui.getInt("viewMode", VIEW_GRID3);
         sort = ui.getInt("sort", SORT_MANUAL);
@@ -162,6 +176,21 @@ public class MainActivity extends Activity {
         snackText = (TextView) findViewById(R.id.snackText);
         snackUndo = (TextView) findViewById(R.id.snackUndo);
         bottomNav = findViewById(R.id.bottomNav);
+        home = findViewById(R.id.home);
+        folderList = (LinearLayout) findViewById(R.id.folderList);
+        homeSummary = (TextView) findViewById(R.id.homeSummary);
+        headerTitle = (TextView) findViewById(R.id.headerTitle);
+        headerDot = findViewById(R.id.headerDot);
+        backBtn = findViewById(R.id.backBtn);
+        searchBtn = findViewById(R.id.searchBtn);
+        sortBtn = findViewById(R.id.sortBtn);
+        fab = (ImageButton) findViewById(R.id.fab);
+        backBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { goHome(); }
+        });
+        findViewById(R.id.newFolderBtn).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showFolderDialog(null); }
+        });
 
         int[][] nav = {
                 {R.id.navAll, R.id.navAllPill, R.id.navAllIcon, R.id.navAllBadge, R.id.navAllLabel},
@@ -251,11 +280,15 @@ public class MainActivity extends Activity {
         });
         grid.setPadding(grid.getPaddingLeft(), dp(66), grid.getPaddingRight(), dp(72 + 96));
 
-        findViewById(R.id.fab).setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { pickVideo(); }
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (currentFolder == null) showFolderDialog(null); else pickVideo();
+            }
         });
         emptyAdd.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { pickVideo(); }
+            @Override public void onClick(View v) {
+                if (currentFolder == null) showFolderDialog(null); else pickVideo();
+            }
         });
         findViewById(R.id.searchBtn).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { toggleSearch(searchRow.getVisibility() != View.VISIBLE); }
@@ -282,6 +315,7 @@ public class MainActivity extends Activity {
         });
 
         setViewMode(viewMode, false);
+        showScreen(false);
         setTab(tab, false);
 
         if (!videos.isEmpty() && !ui.getBoolean("tipSwipe", false)) {
@@ -305,6 +339,7 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         if (searchRow.getVisibility() == View.VISIBLE) { toggleSearch(false); return; }
+        if (currentFolder != null) { goHome(); return; }
         super.onBackPressed();
     }
 
@@ -399,15 +434,21 @@ public class MainActivity extends Activity {
     }
 
     private void refresh() {
+        if (currentFolder == null) buildHome();
+
+        List<VideoItem> inFolder = new ArrayList<VideoItem>();
+        for (VideoItem v : videos) {
+            if (currentFolder != null && currentFolder.equals(v.folderId)) inFolder.add(v);
+        }
         int pub = 0;
-        for (VideoItem v : videos) if (v.published) pub++;
-        navBadges[TAB_ALL].setText(String.valueOf(videos.size()));
-        navBadges[TAB_DRAFT].setText(String.valueOf(videos.size() - pub));
+        for (VideoItem v : inFolder) if (v.published) pub++;
+        navBadges[TAB_ALL].setText(String.valueOf(inFolder.size()));
+        navBadges[TAB_DRAFT].setText(String.valueOf(inFolder.size() - pub));
         navBadges[TAB_PUB].setText(String.valueOf(pub));
 
         String q = query.toLowerCase(Locale.getDefault());
         List<VideoItem> list = new ArrayList<VideoItem>();
-        for (VideoItem v : videos) {
+        for (VideoItem v : inFolder) {
             if (tab == TAB_PUB && !v.published) continue;
             if (tab == TAB_DRAFT && v.published) continue;
             if (!q.isEmpty() && (v.title == null || !v.title.toLowerCase(Locale.getDefault()).contains(q))) continue;
@@ -418,17 +459,27 @@ public class MainActivity extends Activity {
         adapter.notifyDataSetChanged();
 
         boolean empty = shown.isEmpty();
-        emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
+        boolean homeEmpty = currentFolder == null && folders.isEmpty() && videos.isEmpty();
+        emptyView.setVisibility((currentFolder != null && empty) || homeEmpty ? View.VISIBLE : View.GONE);
         emptyAdd.setVisibility(View.GONE);
-        if (empty) {
+        if (homeEmpty) {
+            emptyIcon.setImageResource(R.drawable.ic_folder);
+            emptyTitle.setText("Create your first folder");
+            emptyText.setText("Make a blue Tagalog Dub folder or a red English Dub folder, then add videos inside it.");
+            ((TextView) emptyAdd).setText("+  New folder");
+            emptyAdd.setVisibility(View.VISIBLE);
+        } else if (currentFolder != null && empty) {
+            ((TextView) emptyAdd).setText("+  Add video");
+        }
+        if (currentFolder != null && empty) {
             if (!q.isEmpty()) {
                 emptyIcon.setImageResource(R.drawable.ic_search);
                 emptyTitle.setText("No matches");
                 emptyText.setText("No video titles contain “" + query + "”.");
-            } else if (videos.isEmpty()) {
+            } else if (inFolder.isEmpty()) {
                 emptyIcon.setImageResource(R.drawable.ic_movie);
-                emptyTitle.setText("Your library is empty");
-                emptyText.setText("Add your first video. Every video gets a poster here, and published ones get a green border.");
+                emptyTitle.setText("This folder is empty");
+                emptyText.setText("Add a video to this folder. Every video gets a poster here, and published ones get a green border.");
                 emptyAdd.setVisibility(View.VISIBLE);
             } else if (tab == TAB_PUB) {
                 emptyIcon.setImageResource(R.drawable.ic_check_circle);
@@ -564,6 +615,7 @@ public class MainActivity extends Activity {
         v.title = name.replaceAll("\\.[^.]+$", "").replaceAll("[_-]+", " ").trim();
         v.note = "";
         v.platforms = "";
+        v.folderId = currentFolder == null ? "" : currentFolder;
         v.sizeBytes = size;
         v.createdAt = System.currentTimeMillis();
         showEditDialog(v, true);
@@ -834,6 +886,7 @@ public class MainActivity extends Activity {
         pm.getMenu().add(0, 6, 1, "Platforms");
         pm.getMenu().add(0, 2, 1, "Open details");
         pm.getMenu().add(0, 3, 2, "Edit details");
+        pm.getMenu().add(0, 7, 2, "Move to folder");
         pm.getMenu().add(0, 4, 3, "Share");
         pm.getMenu().add(0, 5, 4, "Remove");
         pm.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
@@ -845,6 +898,7 @@ public class MainActivity extends Activity {
                     case 4: share(v); return true;
                     case 5: removeWithUndo(v); return true;
                     case 6: openPlatformPanel(v); return true;
+                    case 7: showMoveDialog(v); return true;
                 }
                 return false;
             }
@@ -941,6 +995,9 @@ public class MainActivity extends Activity {
         addAction(actions, R.drawable.ic_edit, "Edit", new Runnable() {
             @Override public void run() { showEditDialog(v, false); }
         });
+        addAction(actions, R.drawable.ic_move, "Folder", new Runnable() {
+            @Override public void run() { showMoveDialog(v); }
+        });
         addAction(actions, R.drawable.ic_share, "Share", new Runnable() {
             @Override public void run() { share(v); }
         });
@@ -1036,10 +1093,10 @@ public class MainActivity extends Activity {
         iv.setBackgroundResource(R.drawable.action_circle);
         iv.setPadding(dp(12), dp(12), dp(12), dp(12));
         iv.setContentDescription(label);
-        item.addView(iv, new LinearLayout.LayoutParams(dp(46), dp(46)));
+        item.addView(iv, new LinearLayout.LayoutParams(dp(44), dp(44)));
         TextView tv = new TextView(this);
         tv.setText(label);
-        tv.setTextSize(11);
+        tv.setTextSize(10.5f);
         tv.setTextColor(color(R.color.muted));
         tv.setPadding(0, dp(6), 0, 0);
         tv.setMaxLines(1);
@@ -1063,6 +1120,276 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.rightMargin = dp(8);
         parent.addView(c, lp);
+    }
+
+    // =====================================================================
+    // Folders: home screen, open/close, create/edit/delete, move videos
+    // =====================================================================
+
+    private Folder findFolder(String id) {
+        if (id == null) return null;
+        for (Folder f : folders) if (id.equals(f.id)) return f;
+        return null;
+    }
+
+    private String folderName(String id) {
+        if (id == null || id.isEmpty()) return "Unsorted";
+        Folder f = findFolder(id);
+        return f == null ? "Unsorted" : f.name;
+    }
+
+    private void saveFolders() {
+        store.saveFolders(folders);
+        refresh();
+    }
+
+    private void openFolder(String id) {
+        currentFolder = id;
+        ui.edit().putString("folder", id).apply();
+        if (searchRow.getVisibility() == View.VISIBLE) toggleSearch(false);
+        showScreen(true);
+        refresh();
+        grid.setSelection(0);
+    }
+
+    private void goHome() {
+        currentFolder = null;
+        ui.edit().remove("folder").apply();
+        if (searchRow.getVisibility() == View.VISIBLE) toggleSearch(false);
+        showScreen(true);
+        refresh();
+    }
+
+    /** Switches the chrome between the folder list (home) and a folder's video grid. */
+    private void showScreen(boolean animate) {
+        boolean atHome = currentFolder == null;
+        home.setVisibility(atHome ? View.VISIBLE : View.GONE);
+        grid.setVisibility(atHome ? View.GONE : View.VISIBLE);
+        bottomNav.setVisibility(atHome ? View.GONE : View.VISIBLE);
+        backBtn.setVisibility(atHome ? View.GONE : View.VISIBLE);
+        searchBtn.setVisibility(atHome ? View.GONE : View.VISIBLE);
+        viewBtn.setVisibility(atHome ? View.GONE : View.VISIBLE);
+        sortBtn.setVisibility(atHome ? View.GONE : View.VISIBLE);
+        fab.setImageResource(atHome ? R.drawable.ic_folder_add : R.drawable.ic_add);
+        fab.setContentDescription(atHome ? "New folder" : "Add video");
+        ((FrameLayout.LayoutParams) fabWrap.getLayoutParams()).bottomMargin = dp(atHome ? 8 : 68);
+        ((FrameLayout.LayoutParams) snack.getLayoutParams()).bottomMargin = dp(atHome ? 24 : 84);
+        fabWrap.requestLayout();
+
+        if (atHome) {
+            headerTitle.setText("Video Notebook");
+            headerDot.setVisibility(View.GONE);
+        } else {
+            headerTitle.setText(folderName(currentFolder));
+            Folder f = findFolder(currentFolder);
+            headerDot.setVisibility(f == null ? View.GONE : View.VISIBLE);
+            if (f != null) headerDot.setBackgroundResource(f.isEnglish() ? R.drawable.folder_dot_red : R.drawable.folder_dot_blue);
+        }
+        if (animate) {
+            View shownView = atHome ? home : grid;
+            shownView.setAlpha(0f);
+            shownView.setTranslationX(dp(atHome ? -24 : 24));
+            shownView.animate().alpha(1f).translationX(0).setDuration(220).start();
+        }
+    }
+
+    private void buildHome() {
+        folderList.removeAllViews();
+        int unsorted = 0, unsortedPub = 0;
+        for (VideoItem v : videos) {
+            if (v.folderId == null || v.folderId.isEmpty()) {
+                unsorted++;
+                if (v.published) unsortedPub++;
+            }
+        }
+        homeSummary.setText(folders.size() + (folders.size() == 1 ? " folder" : " folders")
+                + "  ·  " + videos.size() + (videos.size() == 1 ? " video" : " videos"));
+        homeSummary.setVisibility(folders.isEmpty() && videos.isEmpty() ? View.GONE : View.VISIBLE);
+        findViewById(R.id.newFolderBtn).setVisibility(folders.isEmpty() && videos.isEmpty() ? View.GONE : View.VISIBLE);
+
+        int i = 0;
+        for (final Folder f : folders) {
+            int total = 0, pub = 0;
+            for (VideoItem v : videos) {
+                if (f.id.equals(v.folderId)) {
+                    total++;
+                    if (v.published) pub++;
+                }
+            }
+            View card = folderCard(f.isEnglish() ? R.drawable.folder_red : R.drawable.folder_blue,
+                    R.drawable.ic_folder, f.typeLabel(), f.name, total, pub, i++);
+            card.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View b) { openFolder(f.id); }
+            });
+            card.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View b) {
+                    b.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                    showFolderMenu(b, f);
+                    return true;
+                }
+            });
+            card.findViewById(R.id.fMore).setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View b) { showFolderMenu(b, f); }
+            });
+        }
+        if (unsorted > 0) {
+            View card = folderCard(R.drawable.folder_plain, R.drawable.ic_inbox, "NOT IN A FOLDER",
+                    "Unsorted", unsorted, unsortedPub, i);
+            card.findViewById(R.id.fMore).setVisibility(View.GONE);
+            ((TextView) card.findViewById(R.id.fType)).setTextColor(color(R.color.muted));
+            card.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View b) { openFolder(""); }
+            });
+        }
+    }
+
+    private View folderCard(int bg, int icon, String type, String name, int total, int pub, int index) {
+        View card = LayoutInflater.from(this).inflate(R.layout.item_folder, folderList, false);
+        card.setBackgroundResource(bg);
+        ((ImageView) card.findViewById(R.id.fIcon)).setImageResource(icon);
+        ((TextView) card.findViewById(R.id.fType)).setText(type);
+        ((TextView) card.findViewById(R.id.fName)).setText(name);
+        ((TextView) card.findViewById(R.id.fCount)).setText(total == 0 ? "No videos yet"
+                : total + (total == 1 ? " video" : " videos") + "  ·  " + pub + " published");
+        ProgressBar bar = (ProgressBar) card.findViewById(R.id.fBar);
+        bar.setProgress(total == 0 ? 0 : pub * 100 / total);
+        bar.setVisibility(total == 0 ? View.GONE : View.VISIBLE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(12);
+        folderList.addView(card, lp);
+        card.setAlpha(0f);
+        card.setTranslationY(dp(10));
+        card.animate().alpha(1f).translationY(0).setStartDelay(Math.min(index, 8) * 40L).setDuration(220).start();
+        return card;
+    }
+
+    private void showFolderMenu(View anchor, final Folder f) {
+        PopupMenu pm = new PopupMenu(this, anchor, Gravity.END);
+        pm.getMenu().add(0, 1, 0, "Open");
+        pm.getMenu().add(0, 2, 1, "Rename / change type");
+        pm.getMenu().add(0, 3, 2, "Delete folder");
+        pm.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override public boolean onMenuItemClick(MenuItem item) {
+                switch (item.getItemId()) {
+                    case 1: openFolder(f.id); return true;
+                    case 2: showFolderDialog(f); return true;
+                    case 3: confirmDeleteFolder(f); return true;
+                }
+                return false;
+            }
+        });
+        pm.show();
+    }
+
+    /** Create (f == null) or edit a folder: name + Tagalog Dub (blue) / English Dub (red). */
+    private void showFolderDialog(final Folder f) {
+        View content = LayoutInflater.from(this).inflate(R.layout.dialog_folder, null);
+        final EditText name = (EditText) content.findViewById(R.id.dName);
+        final View tag = content.findViewById(R.id.dTagalog);
+        final View eng = content.findViewById(R.id.dEnglish);
+        final TextView tagSub = (TextView) content.findViewById(R.id.dTagalogSub);
+        final TextView engSub = (TextView) content.findViewById(R.id.dEnglishSub);
+        final String[] type = { f == null ? Folder.TAGALOG : f.type };
+        if (f != null) name.setText(f.name);
+        final Runnable paint = new Runnable() {
+            @Override public void run() {
+                boolean english = Folder.ENGLISH.equals(type[0]);
+                tag.setBackgroundResource(english ? R.drawable.type_off : R.drawable.type_blue_on);
+                eng.setBackgroundResource(english ? R.drawable.type_red_on : R.drawable.type_off);
+                tagSub.setTextColor(english ? color(R.color.muted) : 0xFFBFDBFE);
+                engSub.setTextColor(english ? 0xFFFECACA : color(R.color.muted));
+                tagSub.setText(english ? "Blue" : "Blue  ✓");
+                engSub.setText(english ? "Red  ✓" : "Red");
+            }
+        };
+        paint.run();
+        tag.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) { type[0] = Folder.TAGALOG; paint.run(); }
+        });
+        eng.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) { type[0] = Folder.ENGLISH; paint.run(); }
+        });
+
+        new AlertDialog.Builder(this)
+                .setTitle(f == null ? "New folder" : "Edit folder")
+                .setView(content)
+                .setPositiveButton(f == null ? "Create" : "Save", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        String n = name.getText().toString().trim();
+                        if (n.isEmpty()) n = Folder.ENGLISH.equals(type[0]) ? "English Dub" : "Tagalog Dub";
+                        if (f == null) {
+                            Folder nf = new Folder();
+                            nf.id = UUID.randomUUID().toString();
+                            nf.name = n;
+                            nf.type = type[0];
+                            nf.createdAt = System.currentTimeMillis();
+                            folders.add(nf);
+                            saveFolders();
+                            showSnack("Created “" + n + "”", null, null);
+                        } else {
+                            f.name = n;
+                            f.type = type[0];
+                            saveFolders();
+                            if (f.id.equals(currentFolder)) showScreen(false);
+                            showSnack("Saved", null, null);
+                        }
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void confirmDeleteFolder(final Folder f) {
+        int n = 0;
+        for (VideoItem v : videos) if (f.id.equals(v.folderId)) n++;
+        new AlertDialog.Builder(this)
+                .setTitle("Delete “" + f.name + "”?")
+                .setMessage(n == 0 ? "The folder is empty."
+                        : "Its " + n + (n == 1 ? " video moves" : " videos move") + " to Unsorted. No videos are deleted.")
+                .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        for (VideoItem v : videos) if (f.id.equals(v.folderId)) v.folderId = "";
+                        folders.remove(f);
+                        store.save(videos);
+                        saveFolders();
+                        showSnack("Deleted folder “" + f.name + "”", null, null);
+                    }
+                })
+                .setNegativeButton("Keep", null)
+                .show();
+    }
+
+    private void showMoveDialog(final VideoItem v) {
+        final List<String> ids = new ArrayList<String>();
+        List<String> labels = new ArrayList<String>();
+        for (Folder f : folders) {
+            ids.add(f.id);
+            labels.add((f.isEnglish() ? "🔴  " : "🔵  ") + f.name);
+        }
+        ids.add("");
+        labels.add("⚪  Unsorted");
+        int checked = Math.max(0, ids.indexOf(v.folderId == null ? "" : v.folderId));
+        new AlertDialog.Builder(this)
+                .setTitle("Move to folder")
+                .setSingleChoiceItems(labels.toArray(new String[0]), checked, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        final String old = v.folderId;
+                        String target = ids.get(which);
+                        if (target.equals(old)) return;
+                        v.folderId = target;
+                        save();
+                        showSnack("Moved to “" + folderName(target) + "”", new Runnable() {
+                            @Override public void run() {
+                                v.folderId = old;
+                                save();
+                            }
+                        }, null);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     // =====================================================================

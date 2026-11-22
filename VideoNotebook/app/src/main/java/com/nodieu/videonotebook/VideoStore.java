@@ -13,6 +13,7 @@ import java.util.List;
 public class VideoStore {
     private static final String PREFS = "video_notebook";
     private static final String KEY = "videos";
+    private static final String FOLDERS = "folders";
     private final SharedPreferences prefs;
 
     public VideoStore(Context context) {
@@ -40,5 +41,28 @@ public class VideoStore {
             return;
         }
         prefs.edit().putString(KEY, arr.toString()).apply();
+    }
+
+    public List<Folder> loadFolders() {
+        List<Folder> list = new ArrayList<Folder>();
+        try {
+            JSONArray arr = new JSONArray(prefs.getString(FOLDERS, "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                list.add(Folder.fromJson(arr.getJSONObject(i)));
+            }
+        } catch (JSONException e) {
+            // Corrupt data: start with no folders rather than crash.
+        }
+        return list;
+    }
+
+    public void saveFolders(List<Folder> list) {
+        JSONArray arr = new JSONArray();
+        try {
+            for (Folder f : list) arr.put(f.toJson());
+        } catch (JSONException e) {
+            return;
+        }
+        prefs.edit().putString(FOLDERS, arr.toString()).apply();
     }
 }
