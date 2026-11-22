@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     private List<Folder> folders = new ArrayList<Folder>();
     /** null = home (folder list); "" = Unsorted; otherwise a folder id. */
     private String currentFolder;
-    private View home, backBtn, headerDot, searchBtn, sortBtn;
+    private View home, backBtn, headerDot, headerLogo, fabGlow, searchBtn, sortBtn;
     private LinearLayout folderList;
     private TextView headerTitle, homeSummary;
     private ImageButton fab;
@@ -198,6 +198,8 @@ public class MainActivity extends Activity {
         homeSummary = (TextView) findViewById(R.id.homeSummary);
         headerTitle = (TextView) findViewById(R.id.headerTitle);
         headerDot = findViewById(R.id.headerDot);
+        headerLogo = findViewById(R.id.headerLogo);
+        fabGlow = findViewById(R.id.fabGlow);
         backBtn = findViewById(R.id.backBtn);
         searchBtn = findViewById(R.id.searchBtn);
         sortBtn = findViewById(R.id.sortBtn);
@@ -1194,7 +1196,7 @@ public class MainActivity extends Activity {
         fabWrap.requestLayout();
 
         if (atHome) {
-            headerTitle.setText("Video Notebook");
+            headerTitle.setText("Nodieu");
             headerDot.setVisibility(View.GONE);
         } else {
             headerTitle.setText(folderName(currentFolder));
@@ -1211,23 +1213,27 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Home is light gray; inside a folder the app stays dark so posters stand out. */
+    /** Home is clean premium violet; inside a folder the app stays dark so posters stand out. */
     private void applyChrome(boolean light) {
-        header.setBackgroundResource(light ? R.drawable.header_light : R.drawable.header_bg);
-        headerTitle.setTextColor(color(light ? R.color.home_text : R.color.text));
+        header.setBackgroundResource(light ? R.drawable.header_violet : R.drawable.header_bg);
+        headerTitle.setTextColor(color(R.color.text));
+        headerLogo.setVisibility(light ? View.VISIBLE : View.GONE);
+        fab.setBackgroundResource(light ? R.drawable.fab_violet : R.drawable.fab_bg);
+        fabGlow.setBackgroundResource(light ? R.drawable.fab_glow_violet : R.drawable.fab_glow);
         findViewById(R.id.root).setBackgroundColor(color(light ? R.color.home_bg : R.color.bg));
         emptyTitle.setTextColor(color(light ? R.color.home_text : R.color.text));
         emptyText.setTextColor(color(light ? R.color.home_muted : R.color.muted));
         emptyIcon.setBackgroundResource(light ? R.drawable.empty_circle_light : R.drawable.action_circle);
         emptyIcon.setColorFilter(color(light ? R.color.home_muted : R.color.muted));
         Window w = getWindow();
-        w.setStatusBarColor(color(light ? R.color.home_bg : R.color.bg));
+        w.setStatusBarColor(light ? 0xFF4C1D95 : color(R.color.bg));
         w.setNavigationBarColor(color(light ? R.color.home_bg : R.color.surface));
         View decor = w.getDecorView();
         int flags = decor.getSystemUiVisibility();
         int lightBars = 0;
-        if (android.os.Build.VERSION.SDK_INT >= 23) lightBars |= 0x00002000; // SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        // Violet status bar keeps white icons; the lavender navigation bar gets dark icons.
         if (android.os.Build.VERSION.SDK_INT >= 26) lightBars |= 0x00000010; // SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        flags &= ~0x00002000; // never a light status bar
         decor.setSystemUiVisibility(light ? (flags | lightBars) : (flags & ~lightBars));
     }
 

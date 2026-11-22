@@ -61,7 +61,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:text="+  New folder"
-                android:textColor="@color/home_muted"
+                android:textColor="#7C3AED"
                 android:textSize="15sp" />
         </LinearLayout>
     </ScrollView>
@@ -153,6 +153,15 @@
                 android:layout_height="10dp"
                 android:layout_marginRight="8dp"
                 android:background="@drawable/folder_dot_blue"
+                android:visibility="gone" />
+            <ImageView
+                android:id="@+id/headerLogo"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginLeft="-4dp"
+                android:layout_marginRight="8dp"
+                android:contentDescription="Nodieu logo"
+                android:src="@drawable/ic_nodieu_logo"
                 android:visibility="gone" />
             <TextView
                 android:id="@+id/headerTitle"
@@ -288,6 +297,7 @@
         android:layout_marginBottom="68dp"
         android:layout_marginEnd="4dp">
         <View
+            android:id="@+id/fabGlow"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@drawable/fab_glow" />

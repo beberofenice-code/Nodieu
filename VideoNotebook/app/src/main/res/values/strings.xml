@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Video Notebook</string>
+    <string name="app_name">Nodieu</string>
     <string name="tab_all">All</string>
     <string name="tab_draft">Not Yet</string>
     <string name="tab_pub">Published</string>

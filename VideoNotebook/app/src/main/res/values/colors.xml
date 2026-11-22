@@ -31,13 +31,14 @@
     <color name="red">#F43F5E</color>
     <color name="red_soft">#29F43F5E</color>
     <!-- Light gray premium home screen -->
-    <color name="home_bg">#F2F3F5</color>
+    <color name="home_bg">#F4F1FF</color>
     <color name="home_card">#FFFFFF</color>
-    <color name="home_text">#0F172A</color>
-    <color name="home_muted">#64748B</color>
-    <color name="home_line">#E3E6EB</color>
-    <color name="home_header">#F0F2F3F5</color>
+    <color name="home_text">#1E1438</color>
+    <color name="home_muted">#6B5E93</color>
+    <color name="home_line">#E7DFFF</color>
+    <color name="home_header">#F2F4F1FF</color>
     <color name="tagalog">#2563EB</color>
     <color name="english">#DC2626</color>
     <color name="geography">#0D9488</color>
+    <color name="home_violet">#5B21B6</color>
 </resources>
