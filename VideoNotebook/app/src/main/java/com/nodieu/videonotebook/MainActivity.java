@@ -158,6 +158,20 @@ public class MainActivity extends Activity {
             if (v.folderId == null || (!v.folderId.isEmpty() && findFolder(v.folderId) == null)) v.folderId = "";
         }
         ui = getPreferences(MODE_PRIVATE);
+        if (!ui.getBoolean("seedGeography", false)) {
+            boolean exists = false;
+            for (Folder f : folders) if (f.isGeography() || "geography".equalsIgnoreCase(f.name)) exists = true;
+            if (!exists) {
+                Folder g = new Folder();
+                g.id = UUID.randomUUID().toString();
+                g.name = "Geography";
+                g.type = Folder.GEOGRAPHY;
+                g.createdAt = System.currentTimeMillis();
+                folders.add(g);
+                store.saveFolders(folders);
+            }
+            ui.edit().putBoolean("seedGeography", true).apply();
+        }
         currentFolder = ui.getString("folder", null);
         if (currentFolder != null && !currentFolder.isEmpty() && findFolder(currentFolder) == null) currentFolder = null;
         tab = ui.getInt("filter", TAB_ALL);
@@ -468,7 +482,7 @@ public class MainActivity extends Activity {
         if (homeEmpty) {
             emptyIcon.setImageResource(R.drawable.ic_folder);
             emptyTitle.setText("Create your first folder");
-            emptyText.setText("Make a blue Tagalog Dub folder or a red English Dub folder, then add videos inside it.");
+            emptyText.setText("Make a blue Tagalog Dub, red English Dub or green Geography folder, then add videos inside it.");
             ((TextView) emptyAdd).setText("+  New folder");
             emptyAdd.setVisibility(View.VISIBLE);
         } else if (currentFolder != null && empty) {
@@ -1186,14 +1200,40 @@ public class MainActivity extends Activity {
             headerTitle.setText(folderName(currentFolder));
             Folder f = findFolder(currentFolder);
             headerDot.setVisibility(f == null ? View.GONE : View.VISIBLE);
-            if (f != null) headerDot.setBackgroundResource(f.isEnglish() ? R.drawable.folder_dot_red : R.drawable.folder_dot_blue);
+            if (f != null) headerDot.setBackgroundResource(dotFor(f));
         }
+        applyChrome(atHome);
         if (animate) {
             View shownView = atHome ? home : grid;
             shownView.setAlpha(0f);
             shownView.setTranslationX(dp(atHome ? -24 : 24));
             shownView.animate().alpha(1f).translationX(0).setDuration(220).start();
         }
+    }
+
+    /** Home is light gray; inside a folder the app stays dark so posters stand out. */
+    private void applyChrome(boolean light) {
+        header.setBackgroundResource(light ? R.drawable.header_light : R.drawable.header_bg);
+        headerTitle.setTextColor(color(light ? R.color.home_text : R.color.text));
+        findViewById(R.id.root).setBackgroundColor(color(light ? R.color.home_bg : R.color.bg));
+        emptyTitle.setTextColor(color(light ? R.color.home_text : R.color.text));
+        emptyText.setTextColor(color(light ? R.color.home_muted : R.color.muted));
+        emptyIcon.setBackgroundResource(light ? R.drawable.empty_circle_light : R.drawable.action_circle);
+        emptyIcon.setColorFilter(color(light ? R.color.home_muted : R.color.muted));
+        Window w = getWindow();
+        w.setStatusBarColor(color(light ? R.color.home_bg : R.color.bg));
+        w.setNavigationBarColor(color(light ? R.color.home_bg : R.color.surface));
+        View decor = w.getDecorView();
+        int flags = decor.getSystemUiVisibility();
+        int lightBars = 0;
+        if (android.os.Build.VERSION.SDK_INT >= 23) lightBars |= 0x00002000; // SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        if (android.os.Build.VERSION.SDK_INT >= 26) lightBars |= 0x00000010; // SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        decor.setSystemUiVisibility(light ? (flags | lightBars) : (flags & ~lightBars));
+    }
+
+    private int dotFor(Folder f) {
+        if (f.isGeography()) return R.drawable.folder_dot_teal;
+        return f.isEnglish() ? R.drawable.folder_dot_red : R.drawable.folder_dot_blue;
     }
 
     private void buildHome() {
@@ -1219,8 +1259,11 @@ public class MainActivity extends Activity {
                     if (v.published) pub++;
                 }
             }
-            View card = folderCard(f.isEnglish() ? R.drawable.folder_red : R.drawable.folder_blue,
-                    R.drawable.ic_folder, f.typeLabel(), f.name, total, pub, i++);
+            int tileRes = f.isGeography() ? R.drawable.tile_teal : f.isEnglish() ? R.drawable.tile_red : R.drawable.tile_blue;
+            int barRes = f.isGeography() ? R.drawable.bar_teal : f.isEnglish() ? R.drawable.bar_red : R.drawable.bar_blue;
+            int typeColor = color(f.isGeography() ? R.color.geography : f.isEnglish() ? R.color.english : R.color.tagalog);
+            View card = folderCard(tileRes, f.isGeography() ? R.drawable.ic_globe : R.drawable.ic_folder,
+                    typeColor, barRes, f.typeLabel(), f.name, total, pub, i++);
             card.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View b) { openFolder(f.id); }
             });
@@ -1236,25 +1279,28 @@ public class MainActivity extends Activity {
             });
         }
         if (unsorted > 0) {
-            View card = folderCard(R.drawable.folder_plain, R.drawable.ic_inbox, "NOT IN A FOLDER",
-                    "Unsorted", unsorted, unsortedPub, i);
-            card.findViewById(R.id.fMore).setVisibility(View.GONE);
-            ((TextView) card.findViewById(R.id.fType)).setTextColor(color(R.color.muted));
+            View card = folderCard(R.drawable.tile_gray, R.drawable.ic_inbox, color(R.color.home_muted),
+                    R.drawable.bar_gray, "NOT IN A FOLDER", "Unsorted", unsorted, unsortedPub, i);
+            card.findViewById(R.id.fMore).setVisibility(View.INVISIBLE);
             card.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View b) { openFolder(""); }
             });
         }
     }
 
-    private View folderCard(int bg, int icon, String type, String name, int total, int pub, int index) {
+    private View folderCard(int tileRes, int icon, int typeColor, int barRes, String type, String name,
+                            int total, int pub, int index) {
         View card = LayoutInflater.from(this).inflate(R.layout.item_folder, folderList, false);
-        card.setBackgroundResource(bg);
+        card.findViewById(R.id.fTile).setBackgroundResource(tileRes);
         ((ImageView) card.findViewById(R.id.fIcon)).setImageResource(icon);
-        ((TextView) card.findViewById(R.id.fType)).setText(type);
+        TextView typeView = (TextView) card.findViewById(R.id.fType);
+        typeView.setText(type);
+        typeView.setTextColor(typeColor);
         ((TextView) card.findViewById(R.id.fName)).setText(name);
         ((TextView) card.findViewById(R.id.fCount)).setText(total == 0 ? "No videos yet"
                 : total + (total == 1 ? " video" : " videos") + "  \u00B7  " + pub + " published");
         ProgressBar bar = (ProgressBar) card.findViewById(R.id.fBar);
+        bar.setProgressDrawable(getDrawable(barRes));
         bar.setProgress(total == 0 ? 0 : pub * 100 / total);
         bar.setVisibility(total == 0 ? View.GONE : View.VISIBLE);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -1291,6 +1337,8 @@ public class MainActivity extends Activity {
         final EditText name = (EditText) content.findViewById(R.id.dName);
         final View tag = content.findViewById(R.id.dTagalog);
         final View eng = content.findViewById(R.id.dEnglish);
+        final View geo = content.findViewById(R.id.dGeo);
+        final TextView geoSub = (TextView) content.findViewById(R.id.dGeoSub);
         final TextView tagSub = (TextView) content.findViewById(R.id.dTagalogSub);
         final TextView engSub = (TextView) content.findViewById(R.id.dEnglishSub);
         final String[] type = { f == null ? Folder.TAGALOG : f.type };
@@ -1298,12 +1346,17 @@ public class MainActivity extends Activity {
         final Runnable paint = new Runnable() {
             @Override public void run() {
                 boolean english = Folder.ENGLISH.equals(type[0]);
-                tag.setBackgroundResource(english ? R.drawable.type_off : R.drawable.type_blue_on);
+                boolean geography = Folder.GEOGRAPHY.equals(type[0]);
+                boolean tagalog = !english && !geography;
+                tag.setBackgroundResource(tagalog ? R.drawable.type_blue_on : R.drawable.type_off);
                 eng.setBackgroundResource(english ? R.drawable.type_red_on : R.drawable.type_off);
-                tagSub.setTextColor(english ? color(R.color.muted) : 0xFFBFDBFE);
+                geo.setBackgroundResource(geography ? R.drawable.type_teal_on : R.drawable.type_off);
+                tagSub.setTextColor(tagalog ? 0xFFBFDBFE : color(R.color.muted));
                 engSub.setTextColor(english ? 0xFFFECACA : color(R.color.muted));
-                tagSub.setText(english ? "Blue" : "Blue  \u2713");
+                geoSub.setTextColor(geography ? 0xFFCCFBF1 : color(R.color.muted));
+                tagSub.setText(tagalog ? "Blue  \u2713" : "Blue");
                 engSub.setText(english ? "Red  \u2713" : "Red");
+                geoSub.setText(geography ? "Green  \u2713" : "Green");
             }
         };
         paint.run();
@@ -1313,6 +1366,13 @@ public class MainActivity extends Activity {
         eng.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View b) { type[0] = Folder.ENGLISH; paint.run(); }
         });
+        geo.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View b) {
+                type[0] = Folder.GEOGRAPHY;
+                if (name.getText().toString().trim().isEmpty()) name.setText("Geography");
+                paint.run();
+            }
+        });
 
         new AlertDialog.Builder(this)
                 .setTitle(f == null ? "New folder" : "Edit folder")
@@ -1320,7 +1380,8 @@ public class MainActivity extends Activity {
                 .setPositiveButton(f == null ? "Create" : "Save", new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         String n = name.getText().toString().trim();
-                        if (n.isEmpty()) n = Folder.ENGLISH.equals(type[0]) ? "English Dub" : "Tagalog Dub";
+                        if (n.isEmpty()) n = Folder.GEOGRAPHY.equals(type[0]) ? "Geography"
+                                : Folder.ENGLISH.equals(type[0]) ? "English Dub" : "Tagalog Dub";
                         if (f == null) {
                             Folder nf = new Folder();
                             nf.id = UUID.randomUUID().toString();
@@ -1375,7 +1436,7 @@ public class MainActivity extends Activity {
         List<CharSequence> labels = new ArrayList<CharSequence>();
         for (Folder f : folders) {
             ids.add(f.id);
-            labels.add(dotLabel(f.isEnglish() ? 0xFFEF4444 : 0xFF3B82F6, f.name));
+            labels.add(dotLabel(f.isGeography() ? 0xFF14B8A6 : f.isEnglish() ? 0xFFEF4444 : 0xFF3B82F6, f.name));
         }
         ids.add("");
         labels.add(dotLabel(0xFF94A3B8, "Unsorted"));

@@ -3,10 +3,11 @@ package com.nodieu.videonotebook;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** A named folder of videos. Its type sets its color: Tagalog dub = blue, English dub = red. */
+/** A named folder of videos. Its type sets its color: Tagalog dub = blue, English dub = red, Geography = green. */
 public class Folder {
     public static final String TAGALOG = "tagalog";
     public static final String ENGLISH = "english";
+    public static final String GEOGRAPHY = "geography";
 
     public String id;
     public String name;
@@ -15,7 +16,12 @@ public class Folder {
 
     public boolean isEnglish() { return ENGLISH.equals(type); }
 
-    public String typeLabel() { return isEnglish() ? "ENGLISH DUB" : "TAGALOG DUB"; }
+    public boolean isGeography() { return GEOGRAPHY.equals(type); }
+
+    public String typeLabel() {
+        if (isGeography()) return "GEOGRAPHY";
+        return isEnglish() ? "ENGLISH DUB" : "TAGALOG DUB";
+    }
 
     public JSONObject toJson() throws JSONException {
         JSONObject o = new JSONObject();

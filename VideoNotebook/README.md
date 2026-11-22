@@ -1,9 +1,9 @@
 # Video Notebook (Android app)
 
-A dark, poster-style library for your videos. Published videos get an emerald border; drafts get an amber "Draft" badge.
+A light gray premium home screen of folders, and a dark poster-style library for your videos. Published videos get an emerald border; drafts get an amber "Draft" badge.
 
 ## Features
-- **Folders**: the home screen shows your folders as wide cards with their names. **Tagalog Dub** folders are premium blue, **English Dub** folders are premium red. Tap one to see its videos; ← goes back. Create with **+ New folder** or the folder button; long-press (or ⋮) a folder to rename, change type, or delete it (its videos move to *Unsorted*, nothing is deleted). Move a video with **Folder** in its detail sheet or *Move to folder* in its quick menu.
+- **Folders**: the home screen shows your folders as wide cards with their names. **Tagalog Dub** folders are premium blue, **English Dub** folders are premium red, and **Geography** folders are green with a globe logo (a *Geography* folder is created for you once). Tap one to see its videos; ← goes back. Create with **+ New folder** or the folder button; long-press (or ⋮) a folder to rename, change type, or delete it (its videos move to *Unsorted*, nothing is deleted). Move a video with **Folder** in its detail sheet or *Move to folder* in its quick menu.
 - **Poster grid**: 3 columns on phones (4–6 on tablets). The header button switches between poster grid, large grid and list.
 - **Bottom navigation**: All / Not Yet / Published, each with a live count.
 - **+ button**: add any video from your phone. There is **no size limit** (500 MB, 2 GB…), because the app links to the video instead of copying it.

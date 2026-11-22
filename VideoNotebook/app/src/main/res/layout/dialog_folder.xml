@@ -45,7 +45,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:text="Tagalog Dub"
                 android:textColor="#FFFFFF"
-                android:textSize="15sp" />
+                android:textSize="13sp" />
             <TextView
                 android:id="@+id/dTagalogSub"
                 android:layout_width="wrap_content"
@@ -60,6 +60,7 @@
             android:layout_width="0dp"
             android:layout_height="72dp"
             android:layout_marginLeft="6dp"
+            android:layout_marginRight="6dp"
             android:layout_weight="1"
             android:background="@drawable/type_off"
             android:gravity="center"
@@ -71,7 +72,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:text="English Dub"
                 android:textColor="#FFFFFF"
-                android:textSize="15sp" />
+                android:textSize="13sp" />
             <TextView
                 android:id="@+id/dEnglishSub"
                 android:layout_width="wrap_content"
@@ -80,6 +81,36 @@
                 android:text="Red"
                 android:textColor="@color/muted"
                 android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/dGeo"
+            android:layout_width="0dp"
+            android:layout_height="72dp"
+            android:layout_marginLeft="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/type_off"
+            android:gravity="center"
+            android:orientation="vertical">
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_globe"
+                android:tint="#FFFFFF" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="sans-serif-medium"
+                android:text="Geography"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+            <TextView
+                android:id="@+id/dGeoSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Green"
+                android:textColor="@color/muted"
+                android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
