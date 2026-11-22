@@ -20,7 +20,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.text.Editable;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextWatcher;
+import android.text.style.ForegroundColorSpan;
 import android.text.format.DateFormat;
 import android.util.LruCache;
 import android.util.TypedValue;
@@ -80,7 +83,7 @@ public class MainActivity extends Activity {
     private static final int SORT_MANUAL = 0, SORT_ADDED = 1, SORT_POSTED = 2,
             SORT_PLANNED = 3, SORT_NAME = 4, SORT_SIZE = 5;
     private static final String[] SORT_LABELS = {
-            "My order", "Date added", "Date posted", "Planned date", "Name (A–Z)", "File size"
+            "My order", "Date added", "Date posted", "Planned date", "Name (A\u2013Z)", "File size"
     };
 
     private static final String[] PLATFORMS = {
@@ -475,7 +478,7 @@ public class MainActivity extends Activity {
             if (!q.isEmpty()) {
                 emptyIcon.setImageResource(R.drawable.ic_search);
                 emptyTitle.setText("No matches");
-                emptyText.setText("No video titles contain “" + query + "”.");
+                emptyText.setText("No video titles contain \u201C" + query + "\u201D.");
             } else if (inFolder.isEmpty()) {
                 emptyIcon.setImageResource(R.drawable.ic_movie);
                 emptyTitle.setText("This folder is empty");
@@ -484,7 +487,7 @@ public class MainActivity extends Activity {
             } else if (tab == TAB_PUB) {
                 emptyIcon.setImageResource(R.drawable.ic_check_circle);
                 emptyTitle.setText("Nothing published yet");
-                emptyText.setText("Open a video and tap “Mark as Published”. It will show up here.");
+                emptyText.setText("Open a video and tap \u201CMark as Published\u201D. It will show up here.");
             } else {
                 emptyIcon.setImageResource(R.drawable.ic_clock);
                 emptyTitle.setText("All caught up");
@@ -638,7 +641,7 @@ public class MainActivity extends Activity {
         box.addView(title);
 
         final EditText note = new EditText(this);
-        note.setHint("Notes (caption, hashtags…)");
+        note.setHint("Notes (caption, hashtags\u2026)");
         note.setMinLines(2);
         note.setText(v.note);
         box.addView(note);
@@ -743,7 +746,7 @@ public class MainActivity extends Activity {
                         if (isNew) {
                             videos.add(v);
                             save();
-                            showSnack("Added “" + v.title + "”", new Runnable() {
+                            showSnack("Added \u201C" + v.title + "\u201D", new Runnable() {
                                 @Override public void run() {
                                     videos.remove(v);
                                     releaseAccess(v);
@@ -806,7 +809,7 @@ public class MainActivity extends Activity {
         if (idx < 0) return;
         videos.remove(idx);
         save();
-        showSnack("Removed “" + v.title + "”", new Runnable() {
+        showSnack("Removed \u201C" + v.title + "\u201D", new Runnable() {
             @Override public void run() {
                 videos.add(Math.min(idx, videos.size()), v);
                 save();
@@ -818,7 +821,7 @@ public class MainActivity extends Activity {
 
     private void confirmRemove(final VideoItem v) {
         new AlertDialog.Builder(this)
-                .setTitle("Remove “" + v.title + "”?")
+                .setTitle("Remove \u201C" + v.title + "\u201D?")
                 .setMessage("It's removed from the notebook only. The video file stays on your phone.")
                 .setPositiveButton("Remove", new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
@@ -832,7 +835,7 @@ public class MainActivity extends Activity {
 
     private void move(VideoItem v, int dir) {
         if (sort != SORT_MANUAL) {
-            showSnack("Switch sort to “My order” to arrange videos", null, null);
+            showSnack("Switch sort to \u201CMy order\u201D to arrange videos", null, null);
             return;
         }
         int a = videos.indexOf(v);
@@ -879,7 +882,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Long-press or ⋮ on a poster: one-second actions without opening the player. */
+    /** Long-press or \u22EE on a poster: one-second actions without opening the player. */
     private void showQuickMenu(View anchor, final VideoItem v) {
         PopupMenu pm = new PopupMenu(this, anchor, Gravity.END);
         pm.getMenu().add(0, 1, 0, v.published ? "Mark not published" : "Mark as published");
@@ -958,7 +961,7 @@ public class MainActivity extends Activity {
                         video.setVisibility(View.GONE);
                         thumb.setVisibility(View.VISIBLE);
                         playBtn.setVisibility(View.VISIBLE);
-                        toast("Can't play it here. Opening your video player…");
+                        toast("Can't play it here. Opening your video player\u2026");
                         playExternal(v);
                         return true;
                     }
@@ -1026,7 +1029,7 @@ public class MainActivity extends Activity {
 
                 boolean hasPlat = v.platforms != null && !v.platforms.isEmpty();
                 platforms.setVisibility(hasPlat ? View.VISIBLE : View.GONE);
-                if (hasPlat) platforms.setText((p ? "Posted on " : "Post on ") + v.platforms.replace(", ", " · "));
+                if (hasPlat) platforms.setText((p ? "Posted on " : "Post on ") + v.platforms.replace(", ", " \u00B7 "));
 
                 CharSequence plan = plannedText(v, false);
                 plannedView.setVisibility(plan == null ? View.GONE : View.VISIBLE);
@@ -1050,14 +1053,14 @@ public class MainActivity extends Activity {
                     toggle.setBackgroundResource(R.drawable.btn_outline);
                     toggle.setTextColor(color(R.color.text));
                 } else {
-                    toggle.setText("✓  Mark as Published");
+                    toggle.setText("\u2713  Mark as Published");
                     toggle.setBackgroundResource(R.drawable.btn_pub);
                     toggle.setTextColor(0xFFFFFFFF);
                 }
 
                 List<String> plats = platformsOf(v);
                 int done = postedCount(v, plats);
-                platBtn.setText(plats.isEmpty() ? "+  Add platforms" : "Platforms  ·  " + done + "/" + plats.size() + " uploaded  ›");
+                platBtn.setText(plats.isEmpty() ? "+  Add platforms" : "Platforms  \u00B7  " + done + "/" + plats.size() + " uploaded  \u203A");
 
                 int idx = videos.indexOf(v);
                 boolean manual = sort == SORT_MANUAL;
@@ -1203,7 +1206,7 @@ public class MainActivity extends Activity {
             }
         }
         homeSummary.setText(folders.size() + (folders.size() == 1 ? " folder" : " folders")
-                + "  ·  " + videos.size() + (videos.size() == 1 ? " video" : " videos"));
+                + "  \u00B7  " + videos.size() + (videos.size() == 1 ? " video" : " videos"));
         homeSummary.setVisibility(folders.isEmpty() && videos.isEmpty() ? View.GONE : View.VISIBLE);
         findViewById(R.id.newFolderBtn).setVisibility(folders.isEmpty() && videos.isEmpty() ? View.GONE : View.VISIBLE);
 
@@ -1250,7 +1253,7 @@ public class MainActivity extends Activity {
         ((TextView) card.findViewById(R.id.fType)).setText(type);
         ((TextView) card.findViewById(R.id.fName)).setText(name);
         ((TextView) card.findViewById(R.id.fCount)).setText(total == 0 ? "No videos yet"
-                : total + (total == 1 ? " video" : " videos") + "  ·  " + pub + " published");
+                : total + (total == 1 ? " video" : " videos") + "  \u00B7  " + pub + " published");
         ProgressBar bar = (ProgressBar) card.findViewById(R.id.fBar);
         bar.setProgress(total == 0 ? 0 : pub * 100 / total);
         bar.setVisibility(total == 0 ? View.GONE : View.VISIBLE);
@@ -1299,8 +1302,8 @@ public class MainActivity extends Activity {
                 eng.setBackgroundResource(english ? R.drawable.type_red_on : R.drawable.type_off);
                 tagSub.setTextColor(english ? color(R.color.muted) : 0xFFBFDBFE);
                 engSub.setTextColor(english ? 0xFFFECACA : color(R.color.muted));
-                tagSub.setText(english ? "Blue" : "Blue  ✓");
-                engSub.setText(english ? "Red  ✓" : "Red");
+                tagSub.setText(english ? "Blue" : "Blue  \u2713");
+                engSub.setText(english ? "Red  \u2713" : "Red");
             }
         };
         paint.run();
@@ -1326,7 +1329,7 @@ public class MainActivity extends Activity {
                             nf.createdAt = System.currentTimeMillis();
                             folders.add(nf);
                             saveFolders();
-                            showSnack("Created “" + n + "”", null, null);
+                            showSnack("Created \u201C" + n + "\u201D", null, null);
                         } else {
                             f.name = n;
                             f.type = type[0];
@@ -1344,7 +1347,7 @@ public class MainActivity extends Activity {
         int n = 0;
         for (VideoItem v : videos) if (f.id.equals(v.folderId)) n++;
         new AlertDialog.Builder(this)
-                .setTitle("Delete “" + f.name + "”?")
+                .setTitle("Delete \u201C" + f.name + "\u201D?")
                 .setMessage(n == 0 ? "The folder is empty."
                         : "Its " + n + (n == 1 ? " video moves" : " videos move") + " to Unsorted. No videos are deleted.")
                 .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
@@ -1353,26 +1356,33 @@ public class MainActivity extends Activity {
                         folders.remove(f);
                         store.save(videos);
                         saveFolders();
-                        showSnack("Deleted folder “" + f.name + "”", null, null);
+                        showSnack("Deleted folder \u201C" + f.name + "\u201D", null, null);
                     }
                 })
                 .setNegativeButton("Keep", null)
                 .show();
     }
 
+    /** A colored dot followed by a name, e.g. a blue dot for a Tagalog Dub folder. */
+    private CharSequence dotLabel(int dotColor, String name) {
+        SpannableString sp = new SpannableString("\u25CF  " + name);
+        sp.setSpan(new ForegroundColorSpan(dotColor), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return sp;
+    }
+
     private void showMoveDialog(final VideoItem v) {
         final List<String> ids = new ArrayList<String>();
-        List<String> labels = new ArrayList<String>();
+        List<CharSequence> labels = new ArrayList<CharSequence>();
         for (Folder f : folders) {
             ids.add(f.id);
-            labels.add((f.isEnglish() ? "🔴  " : "🔵  ") + f.name);
+            labels.add(dotLabel(f.isEnglish() ? 0xFFEF4444 : 0xFF3B82F6, f.name));
         }
         ids.add("");
-        labels.add("⚪  Unsorted");
+        labels.add(dotLabel(0xFF94A3B8, "Unsorted"));
         int checked = Math.max(0, ids.indexOf(v.folderId == null ? "" : v.folderId));
         new AlertDialog.Builder(this)
                 .setTitle("Move to folder")
-                .setSingleChoiceItems(labels.toArray(new String[0]), checked, new DialogInterface.OnClickListener() {
+                .setSingleChoiceItems(labels.toArray(new CharSequence[0]), checked, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         d.dismiss();
                         final String old = v.folderId;
@@ -1380,7 +1390,7 @@ public class MainActivity extends Activity {
                         if (target.equals(old)) return;
                         v.folderId = target;
                         save();
-                        showSnack("Moved to “" + folderName(target) + "”", new Runnable() {
+                        showSnack("Moved to \u201C" + folderName(target) + "\u201D", new Runnable() {
                             @Override public void run() {
                                 v.folderId = old;
                                 save();
@@ -1455,7 +1465,7 @@ public class MainActivity extends Activity {
                     count.setTextColor(color(R.color.muted));
                     hint.setText("Add where you'll post this video, then tick each one after you upload.");
                 } else if (done == plats.size()) {
-                    count.setText("All " + plats.size() + " uploaded ✓");
+                    count.setText("All " + plats.size() + " uploaded \u2713");
                     count.setTextColor(color(R.color.pub));
                     hint.setText(v.published ? "Done everywhere. This video is published." : "Done everywhere.");
                 } else {
@@ -1479,7 +1489,7 @@ public class MainActivity extends Activity {
                     ImageView boxIcon = (ImageView) row.findViewById(R.id.boxIcon);
                     if (posted) {
                         Long at = v.postedOn.get(name);
-                        state.setText(at != null && at > 0 ? "Uploaded · " + formatDate(at) : "Uploaded");
+                        state.setText(at != null && at > 0 ? "Uploaded \u00B7 " + formatDate(at) : "Uploaded");
                         state.setTextColor(color(R.color.pub));
                         row.setBackgroundResource(R.drawable.platform_row_done);
                         box.setBackgroundResource(R.drawable.box_check);
@@ -1531,7 +1541,7 @@ public class MainActivity extends Activity {
                         @Override public void run() { addPlatform(v, p); }
                     });
                 }
-                addPlatformChip(add, "+  Other…", new Runnable() {
+                addPlatformChip(add, "+  Other\u2026", new Runnable() {
                     @Override public void run() { askOtherPlatform(v); }
                 });
                 addLabel.setText(plats.isEmpty() ? "CHOOSE PLATFORMS" : "ADD A PLATFORM");
@@ -1635,9 +1645,9 @@ public class MainActivity extends Activity {
         int stroke = 0;
         String glyph = name.substring(0, 1).toUpperCase(Locale.getDefault());
         if (n.contains("facebook")) { bg = 0xFF1877F2; glyph = "f"; }
-        else if (n.contains("youtube")) { bg = 0xFFFF0033; glyph = "▶"; }
-        else if (n.contains("tiktok")) { bg = 0xFF111111; glyph = "♪"; fg = 0xFF25F4EE; stroke = 0xFF333333; }
-        else if (n.contains("instagram")) { bg = 0xFFE1306C; glyph = "◎"; }
+        else if (n.contains("youtube")) { bg = 0xFFFF0033; glyph = "\u25B6"; }
+        else if (n.contains("tiktok")) { bg = 0xFF111111; glyph = "\u266A"; fg = 0xFF25F4EE; stroke = 0xFF333333; }
+        else if (n.contains("instagram")) { bg = 0xFFE1306C; glyph = "\u25CE"; }
         else if (n.startsWith("x") || n.contains("twitter")) { bg = 0xFF000000; glyph = "X"; stroke = 0xFF333333; }
         else if (n.contains("snapchat")) { bg = 0xFFFFFC00; glyph = "S"; fg = 0xFF111111; }
         GradientDrawable g = new GradientDrawable();
@@ -1745,14 +1755,14 @@ public class MainActivity extends Activity {
             String size = formatSize(v.sizeBytes);
             if (list) {
                 sb.append("Added ").append(formatDate(v.createdAt));
-                if (p && v.publishedAt > 0) sb.append("  ·  Posted ").append(formatDate(v.publishedAt));
-                if (!size.isEmpty()) sb.append("  ·  ").append(size);
+                if (p && v.publishedAt > 0) sb.append("  \u00B7  Posted ").append(formatDate(v.publishedAt));
+                if (!size.isEmpty()) sb.append("  \u00B7  ").append(size);
             } else {
                 sb.append(size);
             }
             CharSequence plan = p ? null : plannedText(v, true);
             if (plan != null && !list) {
-                if (sb.length() > 0) sb.append(" · ");
+                if (sb.length() > 0) sb.append(" \u00B7 ");
                 sb.append(plan);
             }
             label.setText(sb.toString());
@@ -1779,11 +1789,11 @@ public class MainActivity extends Activity {
             if (list) {
                 TextView extra = (TextView) view.findViewById(R.id.extra);
                 List<String> bits = new ArrayList<String>();
-                if (!plats.isEmpty()) bits.add(done + "/" + plats.size() + " posted · " + v.platforms.replace(", ", " · "));
+                if (!plats.isEmpty()) bits.add(done + "/" + plats.size() + " posted \u00B7 " + v.platforms.replace(", ", " \u00B7 "));
                 CharSequence lp = p ? null : plannedText(v, false);
                 if (lp != null) bits.add(lp.toString());
                 extra.setVisibility(bits.isEmpty() ? View.GONE : View.VISIBLE);
-                extra.setText(join(bits).replace(", ", "  ·  "));
+                extra.setText(join(bits).replace(", ", "  \u00B7  "));
                 extra.setTextColor(lp != null ? plannedColor(v) : color(R.color.accent_light));
             }
 
@@ -1859,10 +1869,10 @@ public class MainActivity extends Activity {
             if (days == 1) return "Tomorrow";
             return "in " + days + "d";
         }
-        if (days < 0) return "⚠ Planned date passed · " + date;
+        if (days < 0) return "\u26A0 Planned date passed \u00B7 " + date;
         if (days == 0) return "Post today!";
-        if (days == 1) return "Post tomorrow · " + date;
-        return "Planned " + date + " · in " + days + " days";
+        if (days == 1) return "Post tomorrow \u00B7 " + date;
+        return "Planned " + date + " \u00B7 in " + days + " days";
     }
 
     private int plannedColor(VideoItem v) {
