@@ -1213,7 +1213,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Home is clean premium violet; inside a folder the app stays dark so posters stand out. */
+    /** Home: black with premium violet cards and a violet header. Inside a folder: dark cinema look. */
     private void applyChrome(boolean light) {
         header.setBackgroundResource(light ? R.drawable.header_violet : R.drawable.header_bg);
         headerTitle.setTextColor(color(R.color.text));
@@ -1231,9 +1231,9 @@ public class MainActivity extends Activity {
         View decor = w.getDecorView();
         int flags = decor.getSystemUiVisibility();
         int lightBars = 0;
-        // Violet status bar keeps white icons; the lavender navigation bar gets dark icons.
-        if (android.os.Build.VERSION.SDK_INT >= 26) lightBars |= 0x00000010; // SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        flags &= ~0x00002000; // never a light status bar
+        // Both screens are dark now, so system bar icons stay white everywhere.
+        flags &= ~0x00002000; // SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        flags &= ~0x00000010; // SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         decor.setSystemUiVisibility(light ? (flags | lightBars) : (flags & ~lightBars));
     }
 

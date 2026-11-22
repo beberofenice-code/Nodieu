@@ -61,7 +61,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:text="+  New folder"
-                android:textColor="#7C3AED"
+                android:textColor="@color/home_muted"
                 android:textSize="15sp" />
         </LinearLayout>
     </ScrollView>

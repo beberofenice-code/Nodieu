@@ -2,7 +2,7 @@
 
 The Nodieu logo is a tilted neon-blue notebook with a black-and-violet screen and a violet play sign.
 
-A clean premium violet home screen of folders, and a dark poster-style library for your videos. Published videos get an emerald border; drafts get an amber "Draft" badge.
+A black home screen with premium violet folder cards, and a dark poster-style library for your videos. Published videos get an emerald border; drafts get an amber "Draft" badge.
 
 ## Features
 - **Folders**: the home screen shows your folders as wide cards with their names. **Tagalog Dub** folders are premium blue, **English Dub** folders are premium red, and **Geography** folders are green with a globe logo (a *Geography* folder is created for you once). Tap one to see its videos; ← goes back. Create with **+ New folder** or the folder button; long-press (or ⋮) a folder to rename, change type, or delete it (its videos move to *Unsorted*, nothing is deleted). Move a video with **Folder** in its detail sheet or *Move to folder* in its quick menu.
