@@ -41,4 +41,10 @@
     <color name="english">#FCA5A5</color>
     <color name="geography">#5EEAD4</color>
     <color name="home_violet">#5B21B6</color>
+    <!-- Clean premium blue quick panel (long-press a video) -->
+    <color name="blue_deep">#0A1A42</color>
+    <color name="blue_mid">#123A8C</color>
+    <color name="blue_line">#2C4F9E</color>
+    <color name="blue_light">#93C5FD</color>
+    <color name="blue_text_muted">#B4C6EE</color>
 </resources>

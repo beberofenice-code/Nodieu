@@ -13,7 +13,7 @@ A black home screen with premium violet folder cards, and a dark poster-style li
 - **Swipe up on a poster** to open the violet **Platforms** panel: one box per platform. A red ✗ means not uploaded there yet; tap it after you upload and it becomes a green ✓ (with the date). When every platform is ✓, the video is marked published. Add platforms with the chips at the bottom; long-press a row to remove one.
 - **Post directly**: every video starts with Facebook and YouTube in its swipe-up panel. Tap **Post** on a row and Nodieu opens that app with the video already attached; when you come back it asks if you posted it and ticks the box.
 - **Up next**: following your arranged order, the first unpublished video in each folder gets a violet **Up next** badge. The panel shows *Video 3 of 7* and a **Next video ›** button that jumps to the next one, so you never hunt through your files.
-- **Long-press a poster** (or tap its ⋮) for one-second actions: mark published, edit, share, remove.
+- **Long-press a poster** (or tap its ⋮) to open the clean blue **quick panel**: it shows if the video is *Up next* and *Video n of m*, two big **Facebook** and **YouTube** cards (tap to post straight to that app; the small ✗/✓ box marks it posted), a **Next video ›** button, and Publish / Details / Edit / Folder / Share / Remove.
 - **Search** titles, and **sort** by my order, date added, date posted, planned date, name or file size.
 - **Undo** after adding, removing, or changing published status.
 - **Platform** (TikTok, YouTube, Facebook, Instagram, X, Snapchat, or your own) and **planned posting date** with Today / Tomorrow / Overdue reminders.

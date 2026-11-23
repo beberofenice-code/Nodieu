@@ -133,6 +133,11 @@ public class MainActivity extends Activity {
     private Runnable panelRebind;
     private String popPlatform; // row whose box should "pop" after a tap
 
+    // Blue quick panel (long-press or the dot button on a poster).
+    private Dialog quick;
+    private VideoItem quickVideo;
+    private Runnable quickRebind;
+
     // Set just before Nodieu opens Facebook/YouTube/...; checked when the person comes back.
     private String pendingPostVideo, pendingPostPlatform;
 
@@ -365,6 +370,7 @@ public class MainActivity extends Activity {
         if (snackCommit != null) { snackCommit.run(); snackCommit = null; }
         if (sheet != null) sheet.dismiss();
         if (panel != null) panel.dismiss();
+        if (quick != null) quick.dismiss();
         thumbExecutor.shutdownNow();
     }
 
@@ -547,6 +553,14 @@ public class MainActivity extends Activity {
                 emptyIcon.setImageResource(R.drawable.ic_clock);
                 emptyTitle.setText("All caught up");
                 emptyText.setText("Every video is published. Nice work.");
+            }
+        }
+
+        if (quick != null && quick.isShowing()) {
+            if (videos.contains(quickVideo)) {
+                if (quickRebind != null) quickRebind.run();
+            } else {
+                quick.dismiss();
             }
         }
 
@@ -937,31 +951,159 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Long-press or \u22EE on a poster: one-second actions without opening the player. */
-    private void showQuickMenu(View anchor, final VideoItem v) {
-        PopupMenu pm = new PopupMenu(this, anchor, Gravity.END);
-        pm.getMenu().add(0, 1, 0, v.published ? "Mark not published" : "Mark as published");
-        pm.getMenu().add(0, 6, 1, "Platforms");
-        pm.getMenu().add(0, 2, 1, "Open details");
-        pm.getMenu().add(0, 3, 2, "Edit details");
-        pm.getMenu().add(0, 7, 2, "Move to folder");
-        pm.getMenu().add(0, 4, 3, "Share");
-        pm.getMenu().add(0, 5, 4, "Remove");
-        pm.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override public boolean onMenuItemClick(MenuItem item) {
-                switch (item.getItemId()) {
-                    case 1: togglePublished(v); return true;
-                    case 2: openSheet(v); return true;
-                    case 3: showEditDialog(v, false); return true;
-                    case 4: share(v); return true;
-                    case 5: removeWithUndo(v); return true;
-                    case 6: openPlatformPanel(v); return true;
-                    case 7: showMoveDialog(v); return true;
+    /** Long-press or the dot button on a poster: the blue quick panel. */
+    private void showQuickMenu(View anchor, VideoItem v) {
+        openQuickSheet(v);
+    }
+
+    /** Adds a platform to the video's list if it isn't there yet (no save). */
+    private void ensurePlatform(VideoItem v, String name) {
+        List<String> plats = platformsOf(v);
+        if (!plats.contains(name)) {
+            plats.add(name);
+            v.platforms = join(plats);
+        }
+    }
+
+    private void openQuickSheet(final VideoItem v) {
+        if (quick != null) quick.dismiss();
+        final Dialog d = new Dialog(this, R.style.SheetDialog);
+        final View root = LayoutInflater.from(this).inflate(R.layout.sheet_quick, null);
+        d.setContentView(root);
+        d.setCanceledOnTouchOutside(true);
+
+        boolean wide = getResources().getConfiguration().screenWidthDp >= 600;
+        Window w = d.getWindow();
+        if (w != null) {
+            w.setLayout(wide ? dp(520) : ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.setGravity(wide ? Gravity.CENTER : Gravity.BOTTOM);
+        }
+        if (wide) root.setBackgroundResource(R.drawable.blue_sheet_bg_round);
+        root.setClipToOutline(true);
+        root.findViewById(R.id.qThumbWrap).setClipToOutline(true);
+        Bitmap cached = thumbs.get(v.uri);
+        if (cached != null) ((ImageView) root.findViewById(R.id.qThumb)).setImageBitmap(cached);
+
+        final TextView upNext = (TextView) root.findViewById(R.id.qUpNext);
+        final TextView pos = (TextView) root.findViewById(R.id.qPos);
+        final TextView title = (TextView) root.findViewById(R.id.qTitle);
+        final TextView status = (TextView) root.findViewById(R.id.qStatus);
+        final LinearLayout cards = (LinearLayout) root.findViewById(R.id.qCards);
+        final View nextBtn = root.findViewById(R.id.qNext);
+        final TextView nextTitle = (TextView) root.findViewById(R.id.qNextTitle);
+        final LinearLayout actions = (LinearLayout) root.findViewById(R.id.qActions);
+
+        quickRebind = new Runnable() {
+            @Override public void run() {
+                List<VideoItem> inFolder = videosInFolder(v.folderId);
+                pos.setText("VIDEO " + (inFolder.indexOf(v) + 1) + " OF " + inFolder.size());
+                upNext.setVisibility(!v.published && v == nextUp(v.folderId) ? View.VISIBLE : View.GONE);
+                title.setText(v.title);
+                String size = formatSize(v.sizeBytes);
+                status.setText((v.published ? "Published" : "Not published yet") + (size.isEmpty() ? "" : "  \u00B7  " + size));
+                status.setTextColor(v.published ? color(R.color.pub) : color(R.color.blue_text_muted));
+
+                // Facebook + YouTube, always shown, side by side
+                cards.removeAllViews();
+                String[] two = {"Facebook", "YouTube"};
+                for (int k = 0; k < two.length; k++) {
+                    final String name = two[k];
+                    View card = LayoutInflater.from(MainActivity.this).inflate(R.layout.item_post_card, cards, false);
+                    boolean posted = v.postedOn.containsKey(name);
+                    styleMonogram((TextView) card.findViewById(R.id.cMono), name);
+                    ((TextView) card.findViewById(R.id.cName)).setText(name);
+                    TextView state = (TextView) card.findViewById(R.id.cState);
+                    TextView go = (TextView) card.findViewById(R.id.cGo);
+                    View box = card.findViewById(R.id.cBox);
+                    ImageView boxIcon = (ImageView) card.findViewById(R.id.cBoxIcon);
+                    if (posted) {
+                        Long at = v.postedOn.get(name);
+                        state.setText(at != null && at > 0 ? "Posted \u00B7 " + formatDate(at) : "Posted");
+                        state.setTextColor(color(R.color.pub));
+                        card.setBackgroundResource(R.drawable.blue_card_done);
+                        box.setBackgroundResource(R.drawable.box_small_check);
+                        boxIcon.setImageResource(R.drawable.ic_check);
+                        boxIcon.setColorFilter(0xFFFFFFFF);
+                        go.setText("Post again");
+                        go.setBackgroundResource(R.drawable.btn_outline);
+                    } else {
+                        state.setText("Not posted yet");
+                        state.setTextColor(0xFFFCA5A5);
+                        box.setBackgroundResource(R.drawable.box_small_x);
+                        boxIcon.setImageResource(R.drawable.ic_close);
+                        boxIcon.setColorFilter(color(R.color.red));
+                        go.setText("Post \u2197");
+                        go.setBackgroundResource(R.drawable.btn_blue);
+                    }
+                    card.setContentDescription("Post to " + name);
+                    View.OnClickListener post = new View.OnClickListener() {
+                        @Override public void onClick(View b) {
+                            ensurePlatform(v, name);
+                            store.save(videos);
+                            postTo(v, name);
+                        }
+                    };
+                    card.setOnClickListener(post);
+                    go.setOnClickListener(post);
+                    box.setOnClickListener(new View.OnClickListener() {
+                        @Override public void onClick(View b) {
+                            b.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                            ensurePlatform(v, name);
+                            togglePlatform(v, name);
+                        }
+                    });
+                    LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) card.getLayoutParams();
+                    if (k == 0) lp.rightMargin = dp(6); else lp.leftMargin = dp(6);
+                    cards.addView(card, lp);
                 }
-                return false;
+
+                final VideoItem next = nextAfter(v);
+                nextBtn.setVisibility(next == null ? View.GONE : View.VISIBLE);
+                if (next != null) {
+                    nextTitle.setText(next.title);
+                    nextBtn.setOnClickListener(new View.OnClickListener() {
+                        @Override public void onClick(View b) { openQuickSheet(next); }
+                    });
+                }
+
+                actions.removeAllViews();
+                int muted = color(R.color.blue_text_muted);
+                addActionStyled(actions, R.drawable.ic_check_circle, v.published ? "Unpublish" : "Publish",
+                        R.drawable.blue_action, muted, new Runnable() {
+                            @Override public void run() { togglePublished(v); }
+                        });
+                addActionStyled(actions, R.drawable.ic_play, "Details", R.drawable.blue_action, muted, new Runnable() {
+                    @Override public void run() { d.dismiss(); openSheet(v); }
+                });
+                addActionStyled(actions, R.drawable.ic_edit, "Edit", R.drawable.blue_action, muted, new Runnable() {
+                    @Override public void run() { showEditDialog(v, false); }
+                });
+                addActionStyled(actions, R.drawable.ic_move, "Folder", R.drawable.blue_action, muted, new Runnable() {
+                    @Override public void run() { showMoveDialog(v); }
+                });
+                addActionStyled(actions, R.drawable.ic_share, "Share", R.drawable.blue_action, muted, new Runnable() {
+                    @Override public void run() { share(v); }
+                });
+                View del = addActionStyled(actions, R.drawable.ic_delete, "Remove", R.drawable.blue_action, muted, new Runnable() {
+                    @Override public void run() { d.dismiss(); removeWithUndo(v); }
+                });
+                ((ImageView) del.findViewWithTag("icon")).setColorFilter(0xFFFCA5A5);
+            }
+        };
+        quickRebind.run();
+
+        d.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override public void onDismiss(DialogInterface di) {
+                if (quick == d) {
+                    quick = null;
+                    quickVideo = null;
+                    quickRebind = null;
+                }
             }
         });
-        pm.show();
+        quick = d;
+        quickVideo = v;
+        d.show();
     }
 
     // =====================================================================
@@ -1141,6 +1283,11 @@ public class MainActivity extends Activity {
     }
 
     private View addAction(LinearLayout parent, int icon, String label, final Runnable action) {
+        return addActionStyled(parent, icon, label, R.drawable.action_circle, color(R.color.muted), action);
+    }
+
+    private View addActionStyled(LinearLayout parent, int icon, String label, int circleBg, int labelColor,
+                                 final Runnable action) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -1148,14 +1295,14 @@ public class MainActivity extends Activity {
         iv.setTag("icon");
         iv.setImageResource(icon);
         iv.setColorFilter(color(R.color.text));
-        iv.setBackgroundResource(R.drawable.action_circle);
+        iv.setBackgroundResource(circleBg);
         iv.setPadding(dp(12), dp(12), dp(12), dp(12));
         iv.setContentDescription(label);
         item.addView(iv, new LinearLayout.LayoutParams(dp(44), dp(44)));
         TextView tv = new TextView(this);
         tv.setText(label);
         tv.setTextSize(10.5f);
-        tv.setTextColor(color(R.color.muted));
+        tv.setTextColor(labelColor);
         tv.setPadding(0, dp(6), 0, 0);
         tv.setMaxLines(1);
         item.addView(tv);
@@ -1897,7 +2044,8 @@ public class MainActivity extends Activity {
     private void showSnack(String message, final Runnable undo, Runnable commit) {
         main.removeCallbacks(snackTimeout);
         if (snackCommit != null) { snackCommit.run(); }
-        boolean overlay = (sheet != null && sheet.isShowing()) || (panel != null && panel.isShowing());
+        boolean overlay = (sheet != null && sheet.isShowing()) || (panel != null && panel.isShowing())
+                || (quick != null && quick.isShowing());
         if (overlay) {
             // The open sheet already shows the change; the bar would be hidden behind it.
             snackCommit = null;
