@@ -86,6 +86,9 @@ public class MainActivity extends Activity {
             "My order", "Date added", "Date posted", "Planned date", "Name (A\u2013Z)", "File size"
     };
 
+    /** Every video starts with these platforms in its swipe-up panel. */
+    private static final String DEFAULT_PLATFORMS = "Facebook, YouTube";
+
     private static final String[] PLATFORMS = {
             "TikTok", "YouTube", "Facebook", "Instagram", "X (Twitter)", "Snapchat"
     };
@@ -130,6 +133,9 @@ public class MainActivity extends Activity {
     private Runnable panelRebind;
     private String popPlatform; // row whose box should "pop" after a tap
 
+    // Set just before Nodieu opens Facebook/YouTube/...; checked when the person comes back.
+    private String pendingPostVideo, pendingPostPlatform;
+
     // Snackbar state: what to do when it closes without Undo.
     private Runnable snackCommit;
     private final Runnable snackTimeout = new Runnable() {
@@ -158,6 +164,13 @@ public class MainActivity extends Activity {
             if (v.folderId == null || (!v.folderId.isEmpty() && findFolder(v.folderId) == null)) v.folderId = "";
         }
         ui = getPreferences(MODE_PRIVATE);
+        if (!ui.getBoolean("defaultPlatforms", false)) {
+            for (VideoItem v : videos) {
+                if (v.platforms == null || v.platforms.trim().isEmpty()) v.platforms = DEFAULT_PLATFORMS;
+            }
+            store.save(videos);
+            ui.edit().putBoolean("defaultPlatforms", true).apply();
+        }
         if (!ui.getBoolean("seedGeography", false)) {
             boolean exists = false;
             for (Folder f : folders) if (f.isGeography() || "geography".equalsIgnoreCase(f.name)) exists = true;
@@ -353,6 +366,32 @@ public class MainActivity extends Activity {
         if (sheet != null) sheet.dismiss();
         if (panel != null) panel.dismiss();
         thumbExecutor.shutdownNow();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (pendingPostVideo == null) return;
+        final String vid = pendingPostVideo, platform = pendingPostPlatform;
+        pendingPostVideo = null;
+        pendingPostPlatform = null;
+        final VideoItem v = findVideo(vid);
+        if (v == null || v.postedOn.containsKey(platform)) return;
+        main.postDelayed(new Runnable() {
+            @Override public void run() {
+                if (isFinishing()) return;
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Posted to " + platform + "?")
+                        .setMessage("Did you finish posting \u201C" + v.title + "\u201D to " + platform + "?")
+                        .setPositiveButton("Yes, posted", new DialogInterface.OnClickListener() {
+                            @Override public void onClick(DialogInterface d, int which) {
+                                if (!v.postedOn.containsKey(platform)) togglePlatform(v, platform);
+                            }
+                        })
+                        .setNegativeButton("Not yet", null)
+                        .show();
+            }
+        }, 350);
     }
 
     @Override
@@ -633,7 +672,7 @@ public class MainActivity extends Activity {
         v.uri = uri.toString();
         v.title = name.replaceAll("\\.[^.]+$", "").replaceAll("[_-]+", " ").trim();
         v.note = "";
-        v.platforms = "";
+        v.platforms = DEFAULT_PLATFORMS;
         v.folderId = currentFolder == null ? "" : currentFolder;
         v.sizeBytes = size;
         v.createdAt = System.currentTimeMillis();
@@ -1517,6 +1556,10 @@ public class MainActivity extends Activity {
         final LinearLayout rows = (LinearLayout) root.findViewById(R.id.pRows);
         final LinearLayout add = (LinearLayout) root.findViewById(R.id.pAdd);
         final TextView addLabel = (TextView) root.findViewById(R.id.pAddLabel);
+        final TextView upNextChip = (TextView) root.findViewById(R.id.pUpNext);
+        final TextView position = (TextView) root.findViewById(R.id.pPosition);
+        final View nextBtn = root.findViewById(R.id.pNext);
+        final TextView nextTitle = (TextView) root.findViewById(R.id.pNextTitle);
         root.findViewById(R.id.pDone).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View b) { d.dismiss(); }
         });
@@ -1526,6 +1569,20 @@ public class MainActivity extends Activity {
                 title.setText(v.title);
                 List<String> plats = platformsOf(v);
                 int done = postedCount(v, plats);
+
+                // Where this video sits in the arranged order of its folder.
+                List<VideoItem> inFolder = videosInFolder(v.folderId);
+                int pos = inFolder.indexOf(v) + 1;
+                position.setText("VIDEO " + pos + " OF " + inFolder.size());
+                upNextChip.setVisibility(!v.published && v == nextUp(v.folderId) ? View.VISIBLE : View.GONE);
+                final VideoItem next = nextAfter(v);
+                nextBtn.setVisibility(next == null ? View.GONE : View.VISIBLE);
+                if (next != null) {
+                    nextTitle.setText(next.title);
+                    nextBtn.setOnClickListener(new View.OnClickListener() {
+                        @Override public void onClick(View b) { openPlatformPanel(next); }
+                    });
+                }
 
                 if (plats.isEmpty()) {
                     count.setText("No platforms yet");
@@ -1538,7 +1595,7 @@ public class MainActivity extends Activity {
                 } else {
                     count.setText(done + " of " + plats.size() + " uploaded");
                     count.setTextColor(color(R.color.violet_light));
-                    hint.setText("Tap a box when you've uploaded the video there.");
+                    hint.setText("Tap Post to open the app with this video. Tap the box when it's uploaded.");
                 }
                 progress.setVisibility(plats.isEmpty() ? View.GONE : View.VISIBLE);
                 progress.setProgress(plats.isEmpty() ? 0 : done * 100 / plats.size());
@@ -1580,6 +1637,13 @@ public class MainActivity extends Activity {
                     };
                     row.setOnClickListener(tap);
                     box.setOnClickListener(tap);
+                    View post = row.findViewById(R.id.post);
+                    ((TextView) row.findViewById(R.id.postText)).setText(posted ? "Again" : "Post");
+                    post.setAlpha(posted ? 0.55f : 1f);
+                    post.setContentDescription("Post to " + name);
+                    post.setOnClickListener(new View.OnClickListener() {
+                        @Override public void onClick(View b) { postTo(v, name); }
+                    });
                     row.setOnLongClickListener(new View.OnLongClickListener() {
                         @Override public boolean onLongClick(View b) {
                             confirmRemovePlatform(v, name);
@@ -1628,6 +1692,101 @@ public class MainActivity extends Activity {
         panel = d;
         panelVideo = v;
         d.show();
+    }
+
+    private VideoItem findVideo(String id) {
+        for (VideoItem v : videos) if (v.id.equals(id)) return v;
+        return null;
+    }
+
+    /** Videos of one folder in the arranged ("My order") order. */
+    private List<VideoItem> videosInFolder(String folderId) {
+        String f = folderId == null ? "" : folderId;
+        List<VideoItem> list = new ArrayList<VideoItem>();
+        for (VideoItem x : videos) if (f.equals(x.folderId == null ? "" : x.folderId)) list.add(x);
+        return list;
+    }
+
+    /** The first not-yet-published video in the folder's arranged order. */
+    private VideoItem nextUp(String folderId) {
+        for (VideoItem x : videosInFolder(folderId)) if (!x.published) return x;
+        return null;
+    }
+
+    /** The next not-yet-published video after this one (wrapping to the start of the folder). */
+    private VideoItem nextAfter(VideoItem v) {
+        List<VideoItem> list = videosInFolder(v.folderId);
+        int i = list.indexOf(v);
+        for (int k = 1; k < list.size(); k++) {
+            VideoItem x = list.get((i + k) % list.size());
+            if (!x.published) return x;
+        }
+        return null;
+    }
+
+    /** Opens Facebook / YouTube / ... with this video attached, ready to post. */
+    private void postTo(VideoItem v, String platform) {
+        String n = platform.toLowerCase(Locale.getDefault());
+        String[] packages;
+        String web = null;
+        if (n.contains("youtube")) {
+            packages = new String[] {"com.google.android.youtube"};
+            web = "https://www.youtube.com/upload";
+        } else if (n.contains("facebook")) {
+            packages = new String[] {"com.facebook.katana", "com.facebook.lite"};
+            web = "https://www.facebook.com/";
+        } else if (n.contains("tiktok")) {
+            packages = new String[] {"com.zhiliaoapp.musically", "com.ss.android.ugc.trill"};
+            web = "https://www.tiktok.com/upload";
+        } else if (n.contains("instagram")) {
+            packages = new String[] {"com.instagram.android"};
+        } else if (n.startsWith("x") || n.contains("twitter")) {
+            packages = new String[] {"com.twitter.android"};
+        } else if (n.contains("snapchat")) {
+            packages = new String[] {"com.snapchat.android"};
+        } else {
+            packages = new String[0];
+        }
+
+        Uri uri = Uri.parse(v.uri);
+        pendingPostVideo = v.id;
+        pendingPostPlatform = platform;
+        for (String pkg : packages) {
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("video/*");
+            i.putExtra(Intent.EXTRA_STREAM, uri);
+            i.setClipData(android.content.ClipData.newRawUri(v.title, uri));
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            i.setPackage(pkg);
+            try {
+                startActivity(i);
+                return;
+            } catch (ActivityNotFoundException e) {
+                // try the next app (e.g. Facebook Lite)
+            } catch (SecurityException e) {
+                pendingPostVideo = null;
+                toast("This video can't be opened anymore. It may have been moved or deleted.");
+                return;
+            }
+        }
+        if (web != null) {
+            toast(platform + " app not found. Opening the website; pick this video there.");
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(web)));
+                return;
+            } catch (ActivityNotFoundException ignored) { }
+        }
+        // Any other platform: let the person choose the app.
+        Intent i = new Intent(Intent.ACTION_SEND);
+        i.setType("video/*");
+        i.putExtra(Intent.EXTRA_STREAM, uri);
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(Intent.createChooser(i, "Post to " + platform));
+        } catch (Exception e) {
+            pendingPostVideo = null;
+            toast("No app found to post this video.");
+        }
     }
 
     private void togglePlatform(VideoItem v, String name) {
@@ -1805,13 +1964,15 @@ public class MainActivity extends Activity {
             View badge = view.findViewById(R.id.badge);
             View dot = view.findViewById(R.id.badgeDot);
             TextView badgeText = (TextView) view.findViewById(R.id.badgeText);
-            dot.setBackgroundResource(p ? R.drawable.dot_pub : R.drawable.dot_draft);
+            boolean upNext = !p && v == nextUp(v.folderId);
+            dot.setBackgroundResource(p ? R.drawable.dot_pub : upNext ? R.drawable.dot_violet : R.drawable.dot_draft);
             if (list) {
-                badge.setBackgroundResource(p ? R.drawable.status_pub : R.drawable.status_draft);
-                badgeText.setText(p ? "Published" : "Not Published");
-                badgeText.setTextColor(color(p ? R.color.pub : R.color.draft));
+                badge.setBackgroundResource(p ? R.drawable.status_pub : upNext ? R.drawable.chip_upnext : R.drawable.status_draft);
+                badgeText.setText(p ? "Published" : upNext ? "Up next" : "Not Published");
+                badgeText.setTextColor(p ? color(R.color.pub) : upNext ? 0xFFFFFFFF : color(R.color.draft));
             } else {
-                badgeText.setText(p ? "Posted" : "Draft");
+                badge.setBackgroundResource(upNext ? R.drawable.chip_upnext : R.drawable.pill_frost);
+                badgeText.setText(p ? "Posted" : upNext ? "Up next" : "Draft");
             }
 
             ((TextView) view.findViewById(R.id.title)).setText(v.title);

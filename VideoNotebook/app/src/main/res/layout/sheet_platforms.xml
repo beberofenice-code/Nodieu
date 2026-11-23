@@ -68,9 +68,27 @@
                         android:layout_weight="1"
                         android:orientation="vertical">
                         <TextView
+                            android:id="@+id/pUpNext"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:background="@drawable/chip_upnext"
+                            android:fontFamily="sans-serif-medium"
+                            android:letterSpacing="0.1"
+                            android:paddingBottom="2dp"
+                            android:paddingLeft="8dp"
+                            android:paddingRight="8dp"
+                            android:paddingTop="2dp"
+                            android:text="UP NEXT"
+                            android:textColor="#FFFFFF"
+                            android:textSize="10sp"
+                            android:visibility="gone" />
+                        <TextView
+                            android:id="@+id/pPosition"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:fontFamily="sans-serif-medium"
+                            android:fontFeatureSettings="tnum"
                             android:letterSpacing="0.14"
                             android:text="PLATFORMS"
                             android:textColor="@color/violet_light"
@@ -146,11 +164,51 @@
                         android:orientation="horizontal" />
                 </HorizontalScrollView>
 
+                <LinearLayout
+                    android:id="@+id/pNext"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:layout_marginTop="22dp"
+                    android:background="@drawable/platform_row_bg"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingLeft="14dp"
+                    android:paddingRight="10dp">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:letterSpacing="0.12"
+                            android:text="NEXT VIDEO"
+                            android:textColor="@color/violet_light"
+                            android:textSize="10.5sp" />
+                        <TextView
+                            android:id="@+id/pNextTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:textColor="@color/text"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_chevron"
+                        android:tint="@color/violet_light" />
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/pDone"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
-                    android:layout_marginTop="22dp"
+                    android:layout_marginTop="12dp"
                     android:background="@drawable/btn_violet"
                     android:fontFamily="sans-serif-medium"
                     android:gravity="center"
